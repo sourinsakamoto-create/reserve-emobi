@@ -1,0 +1,67 @@
+// Tuk-tuk activity booking system schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// A bookable tuk-tuk activity / tour plan (e.g. "街並みクルーズコース").
+model Activity {
+  id                 String         @id @default(cuid())
+  name               String
+  slug               String         @unique
+  description        String
+  durationMinutes    Int
+  pricePerAdult      Int
+  pricePerChild      Int            @default(0)
+  defaultCapacity    Int            @default(4)
+  isOnSale           Boolean        @default(true) // 販売設定: false にすると新規予約を停止
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  scheduleSlots      ScheduleSlot[]
+}
+
+// A concrete date + time slot with its own inventory (capacity),
+// which is how per-slot stock / sales control (在庫管理・販売設定) is expressed.
+model ScheduleSlot {
+  id         String    @id @default(cuid())
+  activityId String
+  activity   Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  date       String    // YYYY-MM-DD
+  startTime  String    // HH:mm
+  capacity   Int        // total number of guests sellable in this slot
+  isOpen     Boolean   @default(true) // 販売設定: 個別スロットの受付停止/再開
+  bookings   Booking[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([activityId, date, startTime])
+  @@index([date])
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+model Booking {
+  id             String        @id @default(cuid())
+  scheduleSlotId String
+  scheduleSlot   ScheduleSlot  @relation(fields: [scheduleSlotId], references: [id], onDelete: Restrict)
+  customerName   String
+  customerKana   String?
+  customerEmail  String
+  customerPhone  String
+  numAdults      Int           @default(1)
+  numChildren    Int           @default(0)
+  notes          String?
+  status         BookingStatus @default(CONFIRMED)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([scheduleSlotId])
+}
