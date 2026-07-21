@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 // A bookable tuk-tuk activity / tour plan (e.g. "街並みクルーズコース").

@@ -10,15 +10,16 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma migrate deploy && next build"
   },
   "dependencies": {
-    "@prisma/adapter-better-sqlite3": "^7.9.0",
+    "@prisma/adapter-pg": "^7.9.0",
     "@prisma/client": "^7.9.0",
-    "better-sqlite3": "^13.0.1",
     "date-fns": "^4.4.0",
     "next": "16.2.11",
     "nodemailer": "^9.0.3",
+    "pg": "^8.22.0",
     "prisma": "^7.9.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -28,6 +29,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.1",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
