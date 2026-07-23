@@ -127,11 +127,11 @@ Vercelにデプロイしている場合は、Project Settings → Environment Va
 npm run vercel-build
 ```
 
-(内部的に `prisma migrate deploy && next build` を実行します。)
+(内部的に `scripts/migrate-deploy-retry.sh && next build` を実行します。マイグレーションは最大5回まで自動リトライされます — Neon等のサーバーレスDBは一定時間アクセスがないと休止し、起動に数秒かかることがあり、1回目の接続がその起動のきっかけになるため、少し待って再試行すると成功することが多いからです。)
 
 また Project Settings → Environment Variables に `DATABASE_URL`(PostgreSQL接続文字列)を設定してください。Vercel の Storage タブから Postgres を作成した場合は自動で設定されます。初回デプロイ後、`npm run db:seed` をローカルから対象DBに向けて一度実行するとサンプルデータが投入されます。
 
-**Neonを使っている場合の注意**: ビルドログに以下のようなエラー(`P1002`)が出る場合は、`DATABASE_URL` に設定しているのがプーリング接続(ホスト名に `-pooler` が含まれるもの)である可能性があります。
+**Neonを使っている場合の注意**: ビルドログに以下のようなエラー(`P1002`)が出る場合があります。
 
 ```
 Error: P1002
@@ -139,7 +139,12 @@ The database server was reached but timed out.
 Context: Timed out trying to acquire a postgres advisory lock
 ```
 
-マイグレーションはプーリング接続では正しく動作しないことがあるため、Neonのダッシュボードで「Direct connection(直接接続)」の接続文字列を確認し、Vercel の Environment Variables に `DIRECT_URL` として追加してください(`DATABASE_URL` はプーリング接続のままで問題ありません)。追加後は再デプロイが必要です。
+これは主に2つの原因が考えられます。
+
+1. **プーリング接続を使っている**: マイグレーションはプーリング接続(ホスト名に `-pooler` が含まれるもの)では正しく動作しないことがあります。Neonのダッシュボードで「Direct connection(直接接続)」の接続文字列を確認し、Vercel の Environment Variables に `DIRECT_URL` として追加してください(`DATABASE_URL` はプーリング接続のままで問題ありません)。
+2. **データベースが休止状態から起動中**: Neon(特に無料プラン)は一定時間アクセスがないとコンピュートを自動的に休止し、次回アクセス時の起動に数秒〜十数秒かかることがあります。この起動待ちがPrisma側の10秒のタイムアウトを超えると、DIRECT_URLを設定していても同じエラーになります。上記の `scripts/migrate-deploy-retry.sh` による自動リトライはこのケースに対応するためのものです。頻発する場合は、Neon側で自動休止までの時間を延ばす、または常時起動プランに変更することもご検討ください。
+
+いずれの場合も設定変更後は再デプロイが必要です。
 
 ## 管理画面の認証について
 
