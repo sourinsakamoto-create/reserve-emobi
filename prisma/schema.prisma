@@ -71,6 +71,20 @@ model StaffUser {
   updatedAt    DateTime  @updatedAt
 }
 
+// Singleton row (one record, id="singleton") holding admin-editable
+// customer email content. Null fields fall back to the built-in defaults
+// in src/lib/emailTemplates.ts.
+model EmailSettings {
+  id                  String   @id @default("singleton")
+  confirmationSubject String?
+  confirmationBody    String?
+  cancellationSubject String?
+  cancellationBody    String?
+  changeSubject       String?
+  changeBody          String?
+  updatedAt           DateTime @updatedAt
+}
+
 model Booking {
   id             String        @id @default(cuid())
   scheduleSlotId String

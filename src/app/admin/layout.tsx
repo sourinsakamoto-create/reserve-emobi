@@ -8,7 +8,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="flex items-center justify-between mb-6">
-        <nav className="flex gap-4 text-sm">
+        <nav className="flex flex-wrap gap-4 text-sm">
           <Link href="/admin" className="font-medium hover:underline">
             ダッシュボード
           </Link>
@@ -20,6 +20,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </Link>
           <Link href="/admin/bookings" className="font-medium hover:underline">
             予約一覧
+          </Link>
+          <Link href="/admin/email-templates" className="font-medium hover:underline">
+            メールテンプレート
           </Link>
           <Link href="/admin/staff" className="font-medium hover:underline">
             スタッフ管理

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendMail, getAdminNotificationEmail } from "@/lib/mailer";
+import { DEFAULT_TEMPLATES, renderTemplate, type EmailTemplateVars } from "@/lib/emailTemplates";
 import type { BookingFormInput } from "@/lib/validation";
 
 export class BookingError extends Error {}
@@ -51,6 +52,27 @@ function bookingSummary(booking: BookingWithSlot) {
     .join("\n");
 }
 
+function templateVars(booking: BookingWithSlot): EmailTemplateVars {
+  const { scheduleSlot } = booking;
+  const { activity } = scheduleSlot;
+  const total =
+    activity.pricePerAdult * booking.numAdults + activity.pricePerChild * booking.numChildren;
+
+  return {
+    customerName: booking.customerName,
+    activityName: activity.name,
+    date: scheduleSlot.date,
+    time: scheduleSlot.startTime,
+    numAdults: String(booking.numAdults),
+    numChildren: String(booking.numChildren),
+    total: `${total.toLocaleString()}円`,
+    bookingId: booking.id,
+    phone: booking.customerPhone,
+    notes: booking.notes ?? "",
+    summary: bookingSummary(booking),
+  };
+}
+
 /**
  * Creates a booking after re-checking remaining capacity inside a transaction,
  * so two customers submitting at the same time can't both book the last seats.
@@ -95,15 +117,7 @@ export async function createBooking(input: BookingFormInput) {
     });
   });
 
-  await notifyBooking({
-    booking,
-    customerSubject: `【ご予約確定】${booking.scheduleSlot.activity.name} - ${booking.scheduleSlot.date} ${booking.scheduleSlot.startTime}`,
-    customerIntro: "この度はご予約いただきありがとうございます。以下の内容で予約を承りました。",
-    customerOutro:
-      "当日は開始時刻の10分前を目安にお越しください。\nお支払いは当日現地にてお願いいたします。",
-    adminSubject: `【新規予約】${booking.scheduleSlot.activity.name} - ${booking.scheduleSlot.date} ${booking.scheduleSlot.startTime}`,
-    adminIntro: "新しい予約が入りました。",
-  });
+  await notifyBooking(booking, "confirmation", "新しい予約が入りました。");
 
   return booking;
 }
@@ -119,13 +133,7 @@ export async function cancelBooking(bookingId: string) {
     include: { scheduleSlot: { include: { activity: true } } },
   });
 
-  await notifyBooking({
-    booking,
-    customerSubject: `【予約キャンセルのお知らせ】${booking.scheduleSlot.activity.name} - ${booking.scheduleSlot.date} ${booking.scheduleSlot.startTime}`,
-    customerIntro: "以下のご予約はキャンセルされました。ご不明な点があればご連絡ください。",
-    adminSubject: `【予約キャンセル】${booking.scheduleSlot.activity.name} - ${booking.scheduleSlot.date} ${booking.scheduleSlot.startTime}`,
-    adminIntro: "予約がキャンセルされました。",
-  });
+  await notifyBooking(booking, "cancellation", "予約がキャンセルされました。");
 
   return booking;
 }
@@ -179,44 +187,41 @@ export async function updateBooking(bookingId: string, input: BookingUpdateInput
     });
   });
 
-  await notifyBooking({
-    booking,
-    customerSubject: `【ご予約内容変更のお知らせ】${booking.scheduleSlot.activity.name} - ${booking.scheduleSlot.date} ${booking.scheduleSlot.startTime}`,
-    customerIntro: "ご予約内容が変更されました。変更後の内容は以下の通りです。",
-    adminSubject: `【予約変更】${booking.scheduleSlot.activity.name} - ${booking.scheduleSlot.date} ${booking.scheduleSlot.startTime}`,
-    adminIntro: "予約内容が変更されました。",
-  });
+  await notifyBooking(booking, "change", "予約内容が変更されました。");
 
   return booking;
 }
 
-async function notifyBooking(args: {
-  booking: BookingWithSlot;
-  customerSubject: string;
-  customerIntro: string;
-  customerOutro?: string;
-  adminSubject: string;
-  adminIntro: string;
-}) {
-  const { booking } = args;
-  const summary = bookingSummary(booking);
+const ADMIN_SUBJECT_PREFIX: Record<EmailKind, string> = {
+  confirmation: "【新規予約】",
+  cancellation: "【予約キャンセル】",
+  change: "【予約変更】",
+};
+
+type EmailKind = "confirmation" | "cancellation" | "change";
+
+async function notifyBooking(booking: BookingWithSlot, kind: EmailKind, adminIntro: string) {
+  const vars = templateVars(booking);
+  const settings = await prisma.emailSettings.findUnique({ where: { id: "singleton" } });
+
+  const subjectKey = `${kind}Subject` as const;
+  const bodyKey = `${kind}Body` as const;
+  const subjectTemplate = settings?.[subjectKey] || DEFAULT_TEMPLATES[subjectKey];
+  const bodyTemplate = settings?.[bodyKey] || DEFAULT_TEMPLATES[bodyKey];
+
+  const customerSubject = renderTemplate(subjectTemplate, vars);
+  const customerBody = renderTemplate(bodyTemplate, vars);
   const adminEmail = getAdminNotificationEmail();
 
   // Sent in parallel (rather than awaited one after another) so a slow or
   // unreachable SMTP server can't double the wait on the booking request.
   await Promise.all([
-    sendMail({
-      to: booking.customerEmail,
-      subject: args.customerSubject,
-      text: `${booking.customerName} 様\n\n${args.customerIntro}\n\n${summary}${
-        args.customerOutro ? `\n\n${args.customerOutro}` : ""
-      }`,
-    }),
+    sendMail({ to: booking.customerEmail, subject: customerSubject, text: customerBody }),
     adminEmail
       ? sendMail({
           to: adminEmail,
-          subject: args.adminSubject,
-          text: `${args.adminIntro}\n\n${summary}\nメール: ${booking.customerEmail}`,
+          subject: `${ADMIN_SUBJECT_PREFIX[kind]}${vars.activityName} - ${vars.date} ${vars.time}`,
+          text: `${adminIntro}\n\n${vars.summary}\nメール: ${booking.customerEmail}`,
         })
       : Promise.resolve(),
   ]);
