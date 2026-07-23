@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { activityFormSchema } from "@/lib/validation";
 import { uploadActivityImage, UploadError } from "@/lib/upload";
+import { cancelBookingsForSlotIds } from "@/lib/booking";
 
 export type ActivityActionState = {
   status: "idle" | "error" | "success";
@@ -102,5 +103,51 @@ export async function toggleActivitySaleAction(formData: FormData) {
   const isOnSale = formData.get("isOnSale") === "true";
   await prisma.activity.update({ where: { id }, data: { isOnSale: !isOnSale } });
   revalidatePath("/admin/activities");
+  revalidatePath("/");
+}
+
+/**
+ * Deletes an activity. Any confirmed bookings on its schedule slots are
+ * cancelled first (customers/guides notified by email, same as a normal
+ * cancellation). If the activity's slots never had any booking at all, the
+ * activity and its slots are hard-deleted. Otherwise the historical booking
+ * records would violate the ScheduleSlot->Booking foreign key (bookings are
+ * kept for the record even when cancelled), so instead the activity and its
+ * slots are soft-deleted (deletedAt set, sales/open flags turned off) which
+ * hides them everywhere while preserving booking history.
+ */
+export async function deleteActivityAction(formData: FormData) {
+  const id = String(formData.get("id"));
+
+  const slots = await prisma.scheduleSlot.findMany({
+    where: { activityId: id },
+    select: { id: true },
+  });
+  const slotIds = slots.map((s) => s.id);
+
+  await cancelBookingsForSlotIds(slotIds);
+
+  const everHadBooking =
+    slotIds.length > 0 &&
+    (await prisma.booking.count({ where: { scheduleSlotId: { in: slotIds } } })) > 0;
+
+  if (!everHadBooking) {
+    await prisma.activity.delete({ where: { id } });
+  } else {
+    const now = new Date();
+    await prisma.$transaction([
+      prisma.scheduleSlot.updateMany({
+        where: { activityId: id },
+        data: { isOpen: false, deletedAt: now },
+      }),
+      prisma.activity.update({
+        where: { id },
+        data: { isOnSale: false, deletedAt: now },
+      }),
+    ]);
+  }
+
+  revalidatePath("/admin/activities");
+  revalidatePath("/admin/schedule");
   revalidatePath("/");
 }

@@ -12,7 +12,7 @@ export default async function ActivityPage({
   const { slug } = await params;
   const activity = await prisma.activity.findUnique({ where: { slug } });
 
-  if (!activity || !activity.isOnSale) notFound();
+  if (!activity || !activity.isOnSale || activity.deletedAt) notFound();
 
   const today = format(new Date(), "yyyy-MM-dd");
   const slots = await getUpcomingSlotsForActivity(activity.id, today);

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import { toggleStaffActiveAction, resetStaffPasswordAction } from "./actions";
 import StaffCreateForm from "@/components/StaffCreateForm";
+import ChangePasswordForm from "@/components/ChangePasswordForm";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,8 @@ export default async function AdminStaffPage() {
   return (
     <div className="space-y-8">
       <h1 className="text-xl font-bold">スタッフ管理</h1>
+
+      <ChangePasswordForm />
 
       <div className="border border-neutral-200 rounded-lg overflow-hidden bg-white">
         <table className="w-full text-sm">

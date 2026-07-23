@@ -5,7 +5,7 @@ import { isGuideAvailabilityRequired } from "@/lib/guideAvailability";
 export async function getUpcomingSlotsForActivity(activityId: string, fromDate: string) {
   const [slots, guideRequired] = await Promise.all([
     prisma.scheduleSlot.findMany({
-      where: { activityId, date: { gte: fromDate } },
+      where: { activityId, date: { gte: fromDate }, deletedAt: null },
       include: { bookings: true, guideAvailabilities: true },
       orderBy: [{ date: "asc" }, { startTime: "asc" }],
     }),

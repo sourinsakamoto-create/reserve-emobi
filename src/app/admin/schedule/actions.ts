@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { addDays, format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { bulkGenerateSlotsSchema } from "@/lib/validation";
+import { cancelBookingsForSlotIds } from "@/lib/booking";
 
 export type BulkGenerateState = {
   status: "idle" | "error" | "success";
@@ -36,7 +37,9 @@ export async function bulkGenerateSlotsAction(
     for (const startTime of times) {
       await prisma.scheduleSlot.upsert({
         where: { activityId_date_startTime: { activityId, date, startTime } },
-        update: {},
+        // Re-creating a slot that was previously soft-deleted should revive
+        // it (reopen for sale) rather than leave it hidden/closed.
+        update: { deletedAt: null, isOpen: true },
         create: { activityId, date, startTime, capacity, isOpen: true },
       });
     }
@@ -61,12 +64,31 @@ export async function toggleSlotOpenAction(formData: FormData) {
   revalidatePath("/admin/schedule");
 }
 
+/**
+ * Deletes a single schedule slot. Any confirmed booking on it is cancelled
+ * first (customer/guide notified by email). If the slot never had any
+ * booking at all it's hard-deleted; otherwise it's soft-deleted (deletedAt
+ * set, closed for sale) to preserve the booking history, since the
+ * ScheduleSlot->Booking foreign key blocks a physical delete while any
+ * booking (even a cancelled one) still references it.
+ */
 export async function deleteSlotAction(formData: FormData) {
   const id = String(formData.get("id"));
-  const bookingCount = await prisma.booking.count({
-    where: { scheduleSlotId: id, status: "CONFIRMED" },
-  });
-  if (bookingCount > 0) return; // Guard: don't delete slots that already have bookings.
-  await prisma.scheduleSlot.delete({ where: { id } });
+
+  await cancelBookingsForSlotIds([id]);
+
+  const everHadBooking = (await prisma.booking.count({ where: { scheduleSlotId: id } })) > 0;
+
+  if (!everHadBooking) {
+    await prisma.scheduleSlot.delete({ where: { id } });
+  } else {
+    await prisma.scheduleSlot.update({
+      where: { id },
+      data: { isOpen: false, deletedAt: new Date() },
+    });
+  }
+
   revalidatePath("/admin/schedule");
+  revalidatePath("/admin/guides");
+  revalidatePath("/");
 }

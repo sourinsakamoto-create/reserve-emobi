@@ -98,7 +98,9 @@ export async function createBooking(input: BookingFormInput) {
       include: { activity: true, bookings: true },
     });
 
-    if (!slot) throw new BookingError("予約枠が見つかりません。");
+    if (!slot || slot.deletedAt || slot.activity.deletedAt) {
+      throw new BookingError("予約枠が見つかりません。");
+    }
     if (!slot.activity.isOnSale) {
       throw new BookingError("このアクティビティは現在受付を停止しています。");
     }
@@ -158,6 +160,27 @@ export async function cancelBooking(bookingId: string) {
   await notifyBooking(booking, "cancellation", "予約がキャンセルされました。");
 
   return booking;
+}
+
+/**
+ * Cancels every CONFIRMED booking on the given slots and notifies each
+ * customer (plus admin/guide) by email, one at a time via cancelBooking().
+ * Used when an admin deletes a schedule slot or an entire activity that
+ * already has bookings on it, so those customers aren't left in the dark.
+ */
+export async function cancelBookingsForSlotIds(scheduleSlotIds: string[]) {
+  if (scheduleSlotIds.length === 0) return [];
+
+  const toCancel = await prisma.booking.findMany({
+    where: { scheduleSlotId: { in: scheduleSlotIds }, status: "CONFIRMED" },
+    select: { id: true },
+  });
+
+  const cancelled = [];
+  for (const { id } of toCancel) {
+    cancelled.push(await cancelBooking(id));
+  }
+  return cancelled;
 }
 
 export type BookingUpdateInput = Omit<BookingFormInput, "scheduleSlotId"> & {

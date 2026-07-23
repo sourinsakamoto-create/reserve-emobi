@@ -13,7 +13,7 @@ export default async function AdminGuidesPage() {
       orderBy: { name: "asc" },
       include: {
         availabilities: {
-          where: { scheduleSlot: { date: { gte: today } } },
+          where: { scheduleSlot: { date: { gte: today }, deletedAt: null } },
           include: { scheduleSlot: { include: { activity: true } } },
           orderBy: { scheduleSlot: { date: "asc" } },
           take: 60,

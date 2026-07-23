@@ -26,6 +26,7 @@ model Activity {
   pricePerChild      Int            @default(0)
   defaultCapacity    Int            @default(4)
   isOnSale           Boolean        @default(true) // 販売設定: false にすると新規予約を停止
+  deletedAt          DateTime?      // 削除日時(ソフトデリート)。過去の予約履歴を残すため物理削除は行わない場合がある
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   scheduleSlots      ScheduleSlot[]
@@ -41,6 +42,7 @@ model ScheduleSlot {
   startTime          String              // HH:mm
   capacity           Int                 // total number of guests sellable in this slot
   isOpen             Boolean             @default(true) // 販売設定: 個別スロットの受付停止/再開
+  deletedAt          DateTime?           // 削除日時(ソフトデリート)。予約履歴が紐づく枠は物理削除できないため使用
   bookings           Booking[]
   guideAvailabilities GuideAvailability[]
   createdAt          DateTime            @default(now())

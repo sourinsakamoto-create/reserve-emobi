@@ -17,6 +17,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import { logoutAction } from "@/app/login/actions";
 import { toggleGuideAvailabilityAction } from "./actions";
+import ChangePasswordForm from "@/components/ChangePasswordForm";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ export default async function GuidePage({
     // that does (seed/admin-generated schedules often start tomorrow).
     const todayStr = format(today, "yyyy-MM-dd");
     const nextSlot = await prisma.scheduleSlot.findFirst({
-      where: { date: { gte: todayStr } },
+      where: { date: { gte: todayStr }, deletedAt: null },
       orderBy: { date: "asc" },
     });
     selectedDate = nextSlot?.date ?? todayStr;
@@ -58,12 +59,13 @@ export default async function GuidePage({
             guideId: session.userId,
             scheduleSlot: {
               date: { gte: format(gridStart, "yyyy-MM-dd"), lte: format(gridEnd, "yyyy-MM-dd") },
+              deletedAt: null,
             },
           },
           include: { scheduleSlot: true },
         }),
         prisma.scheduleSlot.findMany({
-          where: { date: selectedDate },
+          where: { date: selectedDate, deletedAt: null },
           include: { activity: true, guideAvailabilities: { where: { guideId: session.userId } } },
           orderBy: [{ startTime: "asc" }, { activity: { name: "asc" } }],
         }),
@@ -93,6 +95,10 @@ export default async function GuidePage({
       <p className="text-sm text-neutral-600 mb-4">
         日付をクリックすると、その日の便(アクティビティ・時間)が一覧表示されます。担当できる便のボタンを押して緑色にしてください。
       </p>
+
+      <div className="mb-6">
+        <ChangePasswordForm />
+      </div>
 
       <div className="border border-neutral-200 rounded-lg p-4 bg-white max-w-md mb-6">
         <div className="flex items-center justify-between mb-2">
