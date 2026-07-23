@@ -49,20 +49,68 @@ export default async function AdminActivitiesPage() {
                 />
               </label>
               <label className="text-sm">
+                キャッチコピー(名称の下に表示)
+                <input
+                  name="highlights"
+                  defaultValue={activity.highlights ?? ""}
+                  placeholder="例: 期間限定・今だけ半額！"
+                  className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full"
+                />
+              </label>
+              <label className="text-sm sm:col-span-2">
+                画像URL
+                <input
+                  name="imageUrl"
+                  defaultValue={activity.imageUrl ?? ""}
+                  placeholder="https://..."
+                  className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full"
+                />
+              </label>
+              <label className="text-sm sm:col-span-2">
+                説明(コースの見どころなど)
+                <textarea
+                  name="description"
+                  defaultValue={activity.description}
+                  rows={6}
+                  className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full"
+                />
+              </label>
+              <label className="text-sm">
+                含まれるもの(1行に1項目)
+                <textarea
+                  name="included"
+                  defaultValue={activity.included ?? ""}
+                  rows={3}
+                  placeholder={"ガイド料\n保険\n駐車料"}
+                  className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full"
+                />
+              </label>
+              <label className="text-sm">
+                ご利用条件(年齢・免許など)
+                <textarea
+                  name="requirements"
+                  defaultValue={activity.requirements ?? ""}
+                  rows={3}
+                  placeholder={"参加年齢: 6〜70歳\n運転免許は1名でOK"}
+                  className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full"
+                />
+              </label>
+              <label className="text-sm sm:col-span-2">
+                注意事項
+                <textarea
+                  name="notices"
+                  defaultValue={activity.notices ?? ""}
+                  rows={3}
+                  placeholder={"道路渋滞等により到着が遅れる場合があります"}
+                  className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full"
+                />
+              </label>
+              <label className="text-sm">
                 所要時間(分)
                 <input
                   type="number"
                   name="durationMinutes"
                   defaultValue={activity.durationMinutes}
-                  className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full"
-                />
-              </label>
-              <label className="text-sm sm:col-span-2">
-                説明
-                <textarea
-                  name="description"
-                  defaultValue={activity.description}
-                  rows={2}
                   className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full"
                 />
               </label>
@@ -72,6 +120,16 @@ export default async function AdminActivitiesPage() {
                   type="number"
                   name="pricePerAdult"
                   defaultValue={activity.pricePerAdult}
+                  className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full"
+                />
+              </label>
+              <label className="text-sm">
+                割引前の大人料金(円・任意)
+                <input
+                  type="number"
+                  name="originalPriceAdult"
+                  defaultValue={activity.originalPriceAdult ?? ""}
+                  placeholder="例: 6000(取り消し線で表示)"
                   className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full"
                 />
               </label>

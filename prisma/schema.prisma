@@ -14,9 +14,15 @@ model Activity {
   id                 String         @id @default(cuid())
   name               String
   slug               String         @unique
+  highlights         String?        // short catchphrase shown under the name
   description        String
+  imageUrl           String?        // hero image shown on the list/detail pages
+  included           String?        // what's included (free text, one item per line)
+  requirements       String?        // participation conditions: age range, license, etc.
+  notices            String?        // cautions / notes (weather, schedule changes, etc.)
   durationMinutes    Int
   pricePerAdult      Int
+  originalPriceAdult Int?           // pre-discount price per adult, for strikethrough display
   pricePerChild      Int            @default(0)
   defaultCapacity    Int            @default(4)
   isOnSale           Boolean        @default(true) // 販売設定: false にすると新規予約を停止

@@ -27,9 +27,29 @@ export default function ActivityCreateForm() {
         スラッグ(URL用・半角英数-)
         <input name="slug" required pattern="[a-z0-9-]+" className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full" />
       </label>
+      <label className="text-sm">
+        キャッチコピー(名称の下に表示・任意)
+        <input name="highlights" placeholder="例: 期間限定・今だけ半額！" className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full" />
+      </label>
       <label className="text-sm sm:col-span-2">
-        説明
-        <textarea name="description" required rows={2} className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full" />
+        画像URL(任意)
+        <input name="imageUrl" placeholder="https://..." className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full" />
+      </label>
+      <label className="text-sm sm:col-span-2">
+        説明(コースの見どころなど)
+        <textarea name="description" required rows={6} className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full" />
+      </label>
+      <label className="text-sm">
+        含まれるもの(1行に1項目・任意)
+        <textarea name="included" rows={3} placeholder={"ガイド料\n保険\n駐車料"} className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full" />
+      </label>
+      <label className="text-sm">
+        ご利用条件(年齢・免許など・任意)
+        <textarea name="requirements" rows={3} placeholder={"参加年齢: 6〜70歳\n運転免許は1名でOK"} className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full" />
+      </label>
+      <label className="text-sm sm:col-span-2">
+        注意事項(任意)
+        <textarea name="notices" rows={3} placeholder="道路渋滞等により到着が遅れる場合があります" className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full" />
       </label>
       <label className="text-sm">
         所要時間(分)
@@ -42,6 +62,10 @@ export default function ActivityCreateForm() {
       <label className="text-sm">
         大人料金(円)
         <input type="number" name="pricePerAdult" defaultValue={3000} required className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full" />
+      </label>
+      <label className="text-sm">
+        割引前の大人料金(円・任意)
+        <input type="number" name="originalPriceAdult" placeholder="例: 6000" className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full" />
       </label>
       <label className="text-sm">
         子供料金(円)

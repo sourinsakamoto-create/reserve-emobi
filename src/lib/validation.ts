@@ -18,6 +18,15 @@ export const bookingFormSchema = z.object({
 
 export type BookingFormInput = z.infer<typeof bookingFormSchema>;
 
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : undefined));
+
 export const activityFormSchema = z.object({
   name: z.string().trim().min(1).max(100),
   slug: z
@@ -26,9 +35,25 @@ export const activityFormSchema = z.object({
     .min(1)
     .max(60)
     .regex(/^[a-z0-9-]+$/, "半角英小文字・数字・ハイフンのみ使用できます"),
-  description: z.string().trim().min(1).max(2000),
+  highlights: optionalText(200),
+  description: z.string().trim().min(1).max(4000),
+  imageUrl: z
+    .string()
+    .trim()
+    .max(2000)
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : undefined))
+    .refine((v) => !v || /^https?:\/\//.test(v), "画像URLはhttp(s)://で始まる必要があります"),
+  included: optionalText(1000),
+  requirements: optionalText(1000),
+  notices: optionalText(1000),
   durationMinutes: z.coerce.number().int().min(1).max(1440),
   pricePerAdult: z.coerce.number().int().min(0).max(10_000_000),
+  originalPriceAdult: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? undefined : v),
+    z.coerce.number().int().min(0).max(10_000_000).optional()
+  ),
   pricePerChild: z.coerce.number().int().min(0).max(10_000_000),
   defaultCapacity: z.coerce.number().int().min(1).max(500),
 });

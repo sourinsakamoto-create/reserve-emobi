@@ -18,9 +18,15 @@ export async function createActivityAction(
   const parsed = activityFormSchema.safeParse({
     name: formData.get("name"),
     slug: formData.get("slug"),
+    highlights: formData.get("highlights"),
     description: formData.get("description"),
+    imageUrl: formData.get("imageUrl"),
+    included: formData.get("included"),
+    requirements: formData.get("requirements"),
+    notices: formData.get("notices"),
     durationMinutes: formData.get("durationMinutes"),
     pricePerAdult: formData.get("pricePerAdult"),
+    originalPriceAdult: formData.get("originalPriceAdult"),
     pricePerChild: formData.get("pricePerChild"),
     defaultCapacity: formData.get("defaultCapacity"),
   });
@@ -44,9 +50,15 @@ export async function updateActivityAction(formData: FormData) {
   const id = String(formData.get("id"));
   const parsed = activityFormSchema.partial().safeParse({
     name: formData.get("name") || undefined,
+    highlights: formData.get("highlights") || undefined,
     description: formData.get("description") || undefined,
+    imageUrl: formData.get("imageUrl") || undefined,
+    included: formData.get("included") || undefined,
+    requirements: formData.get("requirements") || undefined,
+    notices: formData.get("notices") || undefined,
     durationMinutes: formData.get("durationMinutes") || undefined,
     pricePerAdult: formData.get("pricePerAdult") || undefined,
+    originalPriceAdult: formData.get("originalPriceAdult") || undefined,
     pricePerChild: formData.get("pricePerChild") || undefined,
     defaultCapacity: formData.get("defaultCapacity") || undefined,
   });
