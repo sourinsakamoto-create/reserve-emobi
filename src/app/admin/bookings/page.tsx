@@ -1,15 +1,21 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { cancelBookingAction } from "./actions";
+import { cancelBookingAction, assignGuideAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminBookingsPage() {
-  const bookings = await prisma.booking.findMany({
-    include: { scheduleSlot: { include: { activity: true } } },
-    orderBy: { createdAt: "desc" },
-    take: 200,
-  });
+  const [bookings, guides] = await Promise.all([
+    prisma.booking.findMany({
+      include: { scheduleSlot: { include: { activity: true } }, guide: true },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
+    prisma.staffUser.findMany({
+      where: { role: "GUIDE", isActive: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   return (
     <div>
@@ -25,13 +31,14 @@ export default async function AdminBookingsPage() {
               <th className="px-3 py-2">お客様</th>
               <th className="px-3 py-2">連絡先</th>
               <th className="px-3 py-2">人数</th>
+              <th className="px-3 py-2">担当ガイド</th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody>
             {bookings.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-4 text-center text-neutral-500">
+                <td colSpan={8} className="px-3 py-4 text-center text-neutral-500">
                   予約はまだありません。
                 </td>
               </tr>
@@ -60,6 +67,30 @@ export default async function AdminBookingsPage() {
                 </td>
                 <td className="px-3 py-2">
                   大人{b.numAdults} / 子供{b.numChildren}
+                </td>
+                <td className="px-3 py-2">
+                  {b.status === "CONFIRMED" ? (
+                    <form action={assignGuideAction} className="flex items-center gap-1">
+                      <input type="hidden" name="id" value={b.id} />
+                      <select
+                        name="guideId"
+                        defaultValue={b.guideId ?? ""}
+                        className="border border-neutral-300 rounded px-2 py-1 text-xs"
+                      >
+                        <option value="">未割当</option>
+                        {guides.map((g) => (
+                          <option key={g.id} value={g.id}>
+                            {g.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button type="submit" className="text-xs text-emerald-700 hover:underline">
+                        設定
+                      </button>
+                    </form>
+                  ) : (
+                    <span className="text-neutral-400">{b.guide?.name ?? "-"}</span>
+                  )}
                 </td>
                 <td className="px-3 py-2">
                   {b.status === "CONFIRMED" && (

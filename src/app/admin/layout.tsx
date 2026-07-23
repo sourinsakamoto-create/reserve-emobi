@@ -21,6 +21,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/admin/bookings" className="font-medium hover:underline">
             予約一覧
           </Link>
+          <Link href="/admin/guides" className="font-medium hover:underline">
+            ガイド出勤可能日
+          </Link>
           <Link href="/admin/email-templates" className="font-medium hover:underline">
             メールテンプレート
           </Link>

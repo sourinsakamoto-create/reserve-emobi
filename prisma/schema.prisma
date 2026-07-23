@@ -59,16 +59,31 @@ enum StaffRole {
   GUIDE
 }
 
-// Staff login accounts for the /admin (and future /guide) areas.
+// Staff login accounts for the /admin and /guide areas.
 model StaffUser {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  passwordHash String
-  name         String
-  role         StaffRole @default(ADMIN)
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String              @id @default(cuid())
+  email          String              @unique
+  passwordHash   String
+  name           String
+  role           StaffRole           @default(ADMIN)
+  isActive       Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  availabilities GuideAvailability[]
+  assignedBookings Booking[]         @relation("AssignedGuide")
+}
+
+// A single date a guide has marked themselves available to work.
+// Presence of a row = available; no row = not (yet) marked available.
+model GuideAvailability {
+  id        String    @id @default(cuid())
+  guideId   String
+  guide     StaffUser @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  date      String    // YYYY-MM-DD
+  createdAt DateTime  @default(now())
+
+  @@unique([guideId, date])
+  @@index([date])
 }
 
 // Singleton row (one record, id="singleton") holding admin-editable
@@ -97,8 +112,11 @@ model Booking {
   numChildren    Int           @default(0)
   notes          String?
   status         BookingStatus @default(CONFIRMED)
+  guideId        String?
+  guide          StaffUser?    @relation("AssignedGuide", fields: [guideId], references: [id], onDelete: SetNull)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   @@index([scheduleSlotId])
+  @@index([guideId])
 }
