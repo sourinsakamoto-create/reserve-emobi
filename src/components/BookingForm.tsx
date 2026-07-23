@@ -220,7 +220,7 @@ export default function BookingForm({ slots }: { slots: SlotForForm[] }) {
             )}
           </label>
           <label className="text-sm">
-            備考(送迎場所のご希望など)
+            備考
             <textarea
               name="notes"
               defaultValue={state.values?.notes}

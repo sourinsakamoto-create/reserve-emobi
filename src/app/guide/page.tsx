@@ -16,8 +16,9 @@ import {
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import { logoutAction } from "@/app/login/actions";
-import { toggleGuideAvailabilityAction } from "./actions";
+import { saveGuideAvailabilityAction } from "./actions";
 import ChangePasswordForm from "@/components/ChangePasswordForm";
+import GuideSlotToggle from "@/components/GuideSlotToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -93,7 +94,7 @@ export default async function GuidePage({
       </div>
 
       <p className="text-sm text-neutral-600 mb-4">
-        日付をクリックすると、その日の便(アクティビティ・時間)が一覧表示されます。担当できる便のボタンを押して緑色にしてください。
+        日付をクリックすると、その日の便(アクティビティ・時間)が一覧表示されます。担当できる便のボタンを押して緑色にし、最後に「保存する」を押してください(押すまで保存されません)。
       </p>
 
       <div className="mb-6">
@@ -165,32 +166,29 @@ export default async function GuidePage({
         {slotsForSelectedDate.length === 0 ? (
           <p className="text-sm text-neutral-500">この日はまだ便が設定されていません。</p>
         ) : (
-          <ul className="space-y-2">
-            {slotsForSelectedDate.map((slot) => {
-              const isAvailable = slot.guideAvailabilities.length > 0;
-              return (
-                <li key={slot.id}>
-                  <form action={toggleGuideAvailabilityAction}>
-                    <input type="hidden" name="scheduleSlotId" value={slot.id} />
-                    <input type="hidden" name="isAvailable" value={String(isAvailable)} />
-                    <button
-                      type="submit"
-                      className={`w-full flex items-center justify-between border rounded-lg px-3 py-2 text-sm ${
-                        isAvailable
-                          ? "bg-emerald-700 text-white border-emerald-700"
-                          : "border-neutral-300 hover:bg-neutral-50"
-                      }`}
-                    >
-                      <span>
-                        {slot.startTime} - {slot.activity.name}
-                      </span>
-                      <span className="text-xs">{isAvailable ? "担当可能" : "未設定"}</span>
-                    </button>
-                  </form>
-                </li>
-              );
-            })}
-          </ul>
+          <form action={saveGuideAvailabilityAction} className="space-y-3">
+            <ul className="space-y-2">
+              {slotsForSelectedDate.map((slot) => {
+                const isAvailable = slot.guideAvailabilities.length > 0;
+                return (
+                  <li key={slot.id}>
+                    <input type="hidden" name="allSlotIds" value={slot.id} />
+                    <GuideSlotToggle
+                      slotId={slot.id}
+                      label={`${slot.startTime} - ${slot.activity.name}`}
+                      defaultChecked={isAvailable}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+            <button
+              type="submit"
+              className="w-full rounded-lg bg-emerald-700 text-white px-4 py-2 font-medium hover:bg-emerald-800"
+            >
+              保存する
+            </button>
+          </form>
         )}
       </div>
     </div>

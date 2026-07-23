@@ -3,12 +3,14 @@ import { sendMail, getAdminNotificationEmail } from "@/lib/mailer";
 import { DEFAULT_TEMPLATES, renderTemplate, type EmailTemplateVars } from "@/lib/emailTemplates";
 import { isGuideAvailabilityRequired } from "@/lib/guideAvailability";
 import { getSiteUrl } from "@/lib/site";
+import { calcVehiclesNeeded } from "@/lib/vehicles";
 import type { BookingFormInput } from "@/lib/validation";
 
 export class BookingError extends Error {}
 
 type BookingWithSlot = {
   id: string;
+  scheduleSlotId: string;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
@@ -256,6 +258,28 @@ const GUIDE_SUBJECT_PREFIX: Record<EmailKind, string> = {
 
 type EmailKind = "confirmation" | "cancellation" | "change";
 
+/**
+ * Builds the "how many vehicles are needed for this departure" note for the
+ * admin notification email. One tuk-tuk seats up to 3 guests, and the guide
+ * always brings their own separate vehicle when one is assigned.
+ */
+async function buildVehicleNote(booking: BookingWithSlot) {
+  const slot = await prisma.scheduleSlot.findUnique({
+    where: { id: booking.scheduleSlotId },
+    include: { bookings: true },
+  });
+  const totalGuests = slot ? slotBookedCount(slot.bookings) : booking.numAdults + booking.numChildren;
+  const vehicles = calcVehiclesNeeded(totalGuests, Boolean(booking.guide));
+
+  return [
+    "【車両手配の目安】",
+    `この便の現在の合計人数: ${totalGuests}名`,
+    `お客様用車両: ${vehicles.customerVehicles}台(3名につき1台)`,
+    `ガイド用車両: ${vehicles.guideVehicles}台`,
+    `必要車両 合計: ${vehicles.total}台`,
+  ].join("\n");
+}
+
 async function notifyBooking(booking: BookingWithSlot, kind: EmailKind, adminIntro: string) {
   const vars = templateVars(booking);
   const settings = await prisma.emailSettings.findUnique({ where: { id: "singleton" } });
@@ -269,6 +293,8 @@ async function notifyBooking(booking: BookingWithSlot, kind: EmailKind, adminInt
   const customerBody = renderTemplate(bodyTemplate, vars);
   const adminEmail = getAdminNotificationEmail();
 
+  const vehicleNote = await buildVehicleNote(booking);
+
   // Sent in parallel (rather than awaited one after another) so a slow or
   // unreachable SMTP server can't double the wait on the booking request.
   await Promise.all([
@@ -277,7 +303,7 @@ async function notifyBooking(booking: BookingWithSlot, kind: EmailKind, adminInt
       ? sendMail({
           to: adminEmail,
           subject: `${ADMIN_SUBJECT_PREFIX[kind]}${vars.activityName} - ${vars.date} ${vars.time}`,
-          text: `${adminIntro}\n\n${vars.summary}\nメール: ${booking.customerEmail}`,
+          text: `${adminIntro}\n\n${vars.summary}\nメール: ${booking.customerEmail}\n\n${vehicleNote}`,
         })
       : Promise.resolve(),
     booking.guide

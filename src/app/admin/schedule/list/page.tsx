@@ -2,6 +2,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { slotBookedCount } from "@/lib/booking";
+import { calcVehiclesNeeded } from "@/lib/vehicles";
 
 export const dynamic = "force-dynamic";
 
@@ -106,12 +107,13 @@ export default async function AdminScheduleListPage({
               <th className="px-3 py-2">残り</th>
               <th className="px-3 py-2">販売状態</th>
               <th className="px-3 py-2">運行可否</th>
+              <th className="px-3 py-2">必要車両</th>
             </tr>
           </thead>
           <tbody>
             {slots.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-4 text-center text-neutral-500">
+                <td colSpan={9} className="px-3 py-4 text-center text-neutral-500">
                   該当する日程がありません。
                 </td>
               </tr>
@@ -121,6 +123,7 @@ export default async function AdminScheduleListPage({
               const remaining = slot.capacity - booked;
               const isPast = slot.date < today;
               const guideCount = slot.guideAvailabilities.length;
+              const vehicles = calcVehiclesNeeded(booked, guideCount > 0);
               return (
                 <tr
                   key={slot.id}
@@ -160,6 +163,11 @@ export default async function AdminScheduleListPage({
                     >
                       {guideCount > 0 ? `運行可(${guideCount}名)` : "ガイド未配置"}
                     </span>
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    {booked > 0 || guideCount > 0
+                      ? `${vehicles.total}台(客${vehicles.customerVehicles}+ガイド${vehicles.guideVehicles})`
+                      : "-"}
                   </td>
                 </tr>
               );

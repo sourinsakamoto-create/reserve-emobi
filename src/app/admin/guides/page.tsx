@@ -7,18 +7,15 @@ export const dynamic = "force-dynamic";
 export default async function AdminGuidesPage() {
   const today = format(new Date(), "yyyy-MM-dd");
 
-  const [guides, settings] = await Promise.all([
+  const [guides, slots, settings] = await Promise.all([
     prisma.staffUser.findMany({
       where: { role: "GUIDE", isActive: true },
       orderBy: { name: "asc" },
-      include: {
-        availabilities: {
-          where: { scheduleSlot: { date: { gte: today }, deletedAt: null } },
-          include: { scheduleSlot: { include: { activity: true } } },
-          orderBy: { scheduleSlot: { date: "asc" } },
-          take: 60,
-        },
-      },
+    }),
+    prisma.scheduleSlot.findMany({
+      where: { date: { gte: today }, deletedAt: null },
+      include: { activity: true, guideAvailabilities: true },
+      orderBy: [{ date: "asc" }, { startTime: "asc" }, { activity: { name: "asc" } }],
     }),
     prisma.bookingSettings.findUnique({ where: { id: "singleton" } }),
   ]);
@@ -52,8 +49,7 @@ export default async function AdminGuidesPage() {
       </div>
 
       <p className="text-sm text-neutral-600">
-        各ガイドが自分で「出勤可能」と設定した便(日時・アクティビティ)です。予約の担当ガイドを決める際の参考にしてください。
-        同じ便に複数のガイドが登録した場合、先に登録した人が自動的に予約の担当として割り当てられます。
+        各ガイドが「担当可能」と設定した便(日時・アクティビティ)を、便×ガイドの表で確認できます。★は同じ便に複数のガイドが登録した場合に、先に登録して自動的に予約の担当として割り当てられるガイドです。
         (ガイドアカウントの追加は「スタッフ管理」から行えます)
       </p>
 
@@ -61,30 +57,62 @@ export default async function AdminGuidesPage() {
         <p className="text-sm text-neutral-500">
           ガイドアカウントがまだ登録されていません。「スタッフ管理」から役割を「ガイド」にして追加してください。
         </p>
+      ) : slots.length === 0 ? (
+        <p className="text-sm text-neutral-500">今後の日程がまだ登録されていません。</p>
       ) : (
-        <ul className="space-y-4">
-          {guides.map((guide) => (
-            <li key={guide.id} className="border border-neutral-200 rounded-lg p-4 bg-white">
-              <h2 className="font-semibold mb-2">
-                {guide.name} <span className="text-xs text-neutral-400">{guide.email}</span>
-              </h2>
-              {guide.availabilities.length === 0 ? (
-                <p className="text-sm text-neutral-500">出勤可能な便がまだ登録されていません。</p>
-              ) : (
-                <div className="flex flex-wrap gap-1">
-                  {guide.availabilities.map((a) => (
-                    <span
-                      key={a.id}
-                      className="text-xs bg-emerald-100 text-emerald-800 rounded-full px-2 py-1"
-                    >
-                      {a.scheduleSlot.date} {a.scheduleSlot.startTime} / {a.scheduleSlot.activity.name}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+        <div className="border border-neutral-200 rounded-lg overflow-x-auto bg-white">
+          <table className="w-full text-sm">
+            <thead className="bg-neutral-100 text-left">
+              <tr>
+                <th className="px-3 py-2 sticky left-0 bg-neutral-100">日時・プラン</th>
+                {guides.map((g) => (
+                  <th key={g.id} className="px-3 py-2 text-center whitespace-nowrap">
+                    {g.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {slots.map((slot) => {
+                const sortedAvailabilities = [...slot.guideAvailabilities].sort(
+                  (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+                );
+                const primaryGuideId = sortedAvailabilities[0]?.guideId;
+                const availableGuideIds = new Set(slot.guideAvailabilities.map((a) => a.guideId));
+
+                return (
+                  <tr key={slot.id} className="border-t border-neutral-100">
+                    <td className="px-3 py-2 whitespace-nowrap sticky left-0 bg-white">
+                      {slot.date} {slot.startTime} / {slot.activity.name}
+                    </td>
+                    {guides.map((g) => {
+                      const isAvailable = availableGuideIds.has(g.id);
+                      const isPrimary = g.id === primaryGuideId;
+                      return (
+                        <td key={g.id} className="px-3 py-2 text-center">
+                          {isAvailable ? (
+                            <span
+                              className={`inline-flex items-center justify-center rounded-full w-7 h-7 text-xs font-bold ${
+                                isPrimary
+                                  ? "bg-emerald-700 text-white"
+                                  : "bg-emerald-100 text-emerald-800"
+                              }`}
+                              title={isPrimary ? "担当(先に登録)" : "担当可能"}
+                            >
+                              {isPrimary ? "★" : "○"}
+                            </span>
+                          ) : (
+                            <span className="text-neutral-300">-</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
