@@ -14,6 +14,8 @@ type SlotForForm = {
   guideRequired: boolean;
 };
 
+const RENTAL_SITE_URL = "https://new-app.emobi.co.jp/";
+
 function isSlotBookable(slot: SlotForForm) {
   return slot.isOpen && slot.remaining > 0 && (!slot.guideRequired || slot.hasGuide);
 }
@@ -28,10 +30,30 @@ export default function BookingForm({ slots }: { slots: SlotForForm[] }) {
     return Array.from(set).sort();
   }, [slots]);
 
-  const [selectedDate, setSelectedDate] = useState(availableDates[0] ?? "");
+  // Days where departures exist but none has a guide assigned (and guide
+  // coverage is required) — no guided tour runs, but customers can still
+  // use the normal self-service rental instead.
+  const noGuideDates = useMemo(() => {
+    const byDate = new Map<string, SlotForForm[]>();
+    for (const s of slots) {
+      if (!byDate.has(s.date)) byDate.set(s.date, []);
+      byDate.get(s.date)!.push(s);
+    }
+    const result: string[] = [];
+    for (const [date, daySlots] of byDate) {
+      if (availableDates.includes(date)) continue;
+      if (daySlots.some((s) => s.guideRequired) && daySlots.every((s) => !s.hasGuide)) {
+        result.push(date);
+      }
+    }
+    return result.sort();
+  }, [slots, availableDates]);
+
+  const [selectedDate, setSelectedDate] = useState(availableDates[0] ?? noGuideDates[0] ?? "");
   const [selectedSlotId, setSelectedSlotId] = useState<string>("");
 
   const slotsForDate = slots.filter((s) => s.date === selectedDate);
+  const dayHasNoGuideSlot = slotsForDate.some((s) => s.guideRequired && !s.hasGuide);
 
   const fieldError = (name: string) => state.fieldErrors?.[name];
 
@@ -45,11 +67,12 @@ export default function BookingForm({ slots }: { slots: SlotForForm[] }) {
 
       <div>
         <h3 className="font-semibold mb-2">1. 日付を選択</h3>
-        {availableDates.length === 0 ? (
+        {availableDates.length === 0 && noGuideDates.length === 0 ? (
           <p className="text-sm text-neutral-500">現在予約可能な日程がありません。</p>
         ) : (
           <Calendar
             availableDates={availableDates}
+            noGuideDates={noGuideDates}
             selectedDate={selectedDate}
             onSelectDate={(d) => {
               setSelectedDate(d);
@@ -91,7 +114,7 @@ export default function BookingForm({ slots }: { slots: SlotForForm[] }) {
                     {!slot.isOpen || slot.remaining <= 0
                       ? "満席/停止中"
                       : slot.guideRequired && !slot.hasGuide
-                      ? "担当者未定"
+                      ? "運行なし"
                       : `残り${slot.remaining}名`}
                   </span>
                 </label>
@@ -100,6 +123,22 @@ export default function BookingForm({ slots }: { slots: SlotForForm[] }) {
           </div>
           {fieldError("scheduleSlotId") && (
             <p className="text-xs text-red-600 mt-1">{fieldError("scheduleSlotId")}</p>
+          )}
+          {dayHasNoGuideSlot && (
+            <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+              <p>この日はガイド不在のため、ガイド付きツアーの運行がございません。</p>
+              <p className="mt-1">
+                通常のレンタルは以下のサイトからご利用いただけます:{" "}
+                <a
+                  href={RENTAL_SITE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline font-medium"
+                >
+                  emobi レンタル予約サイト
+                </a>
+              </p>
+            </div>
           )}
         </div>
       )}

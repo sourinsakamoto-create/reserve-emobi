@@ -20,14 +20,18 @@ const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 
 export default function Calendar({
   availableDates,
+  noGuideDates = [],
   selectedDate,
   onSelectDate,
 }: {
   availableDates: string[];
+  /** Dates with no guide-covered departures, but self-service rental is still an option. */
+  noGuideDates?: string[];
   selectedDate: string;
   onSelectDate: (date: string) => void;
 }) {
   const availableSet = new Set(availableDates);
+  const noGuideSet = new Set(noGuideDates);
   const initialMonth = selectedDate ? new Date(`${selectedDate}T00:00:00`) : new Date();
   const [viewedMonth, setViewedMonth] = useState(startOfMonth(initialMonth));
 
@@ -73,8 +77,9 @@ export default function Calendar({
           const inMonth = isSameMonth(day, viewedMonth);
           const isPast = isBefore(day, today);
           const hasAvailability = availableSet.has(dateStr);
+          const hasNoGuideRental = !hasAvailability && noGuideSet.has(dateStr);
           const isSelected = selectedDate === dateStr;
-          const disabled = !inMonth || isPast || !hasAvailability;
+          const disabled = !inMonth || isPast || (!hasAvailability && !hasNoGuideRental);
 
           return (
             <button
@@ -93,12 +98,17 @@ export default function Calendar({
               {hasAvailability && !isSelected && inMonth && !isPast && (
                 <span className="absolute bottom-1 w-1 h-1 rounded-full bg-emerald-500" />
               )}
+              {hasNoGuideRental && !isSelected && inMonth && !isPast && (
+                <span className="absolute bottom-1 w-1 h-1 rounded-full bg-amber-500" />
+              )}
             </button>
           );
         })}
       </div>
 
-      <p className="text-xs text-neutral-500 mt-2">緑の点がついている日が予約可能です。</p>
+      <p className="text-xs text-neutral-500 mt-2">
+        緑の点: ガイド付きツアーが予約可能です。オレンジの点: ガイドの運行はありませんが、通常のレンタルはご利用いただけます。
+      </p>
     </div>
   );
 }
