@@ -1,6 +1,12 @@
 #!/bin/sh
 # Wraps `prisma migrate deploy` with retries.
 #
+# NOTE: not currently wired into `vercel-build` (see README's "Vercelへの
+# デプロイ" section) — retries alone didn't resolve a run of P1002 failures
+# against the project's current Neon database, so migrate deploy is
+# temporarily skipped in the Vercel build. Re-enable this once that's
+# understood, and definitely before the next schema change ships.
+#
 # Serverless Postgres providers (e.g. Neon) suspend their compute after a
 # period of inactivity and can take longer than Prisma's fixed 10-second
 # advisory-lock timeout to wake back up, which makes migrate deploy fail

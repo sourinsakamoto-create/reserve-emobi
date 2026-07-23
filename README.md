@@ -127,7 +127,12 @@ Vercelにデプロイしている場合は、Project Settings → Environment Va
 npm run vercel-build
 ```
 
-(内部的に `scripts/migrate-deploy-retry.sh && next build` を実行します。マイグレーションは最大5回まで自動リトライされます — Neon等のサーバーレスDBは一定時間アクセスがないと休止し、起動に数秒かかることがあり、1回目の接続がその起動のきっかけになるため、少し待って再試行すると成功することが多いからです。)
+> **⚠️ 現在`vercel-build`はマイグレーション実行(`prisma migrate deploy`)を含まない`next build`のみの状態です(一時的な措置)。**
+> Vercelのビルドサーバーから今使っているNeonデータベースへの接続で、`prisma migrate deploy`だけが原因不明のまま毎回失敗する状態になったため、応急処置として一時的にスキップしています。現時点では未適用のマイグレーションは無いため、アプリの動作には影響ありません。
+> **次に schema.prisma を変更する(新しいマイグレーションを追加する)タイミングより前に、必ずこの問題を解決するか、`"vercel-build": "sh scripts/migrate-deploy-retry.sh && next build"` に戻して動作確認してください。** そのままだと、新しいマイグレーションが本番DBに反映されないままアプリだけが更新され、不整合が起きる可能性があります。
+> (`scripts/migrate-deploy-retry.sh` 自体は削除しておらず、最大5回まで自動リトライする仕組みとして残してあります)
+
+通常時は、内部的に `scripts/migrate-deploy-retry.sh && next build` を実行する構成を想定しています。マイグレーションは最大5回まで自動リトライされます — Neon等のサーバーレスDBは一定時間アクセスがないと休止し、起動に数秒かかることがあり、1回目の接続がその起動のきっかけになるため、少し待って再試行すると成功することが多いからです(が、今回のケースはこのリトライでも解決しませんでした。上記の注意を参照してください)。
 
 また Project Settings → Environment Variables に `DATABASE_URL`(PostgreSQL接続文字列)を設定してください。Vercel の Storage タブから Postgres を作成した場合は自動で設定されます。初回デプロイ後、`npm run db:seed` をローカルから対象DBに向けて一度実行するとサンプルデータが投入されます。
 
