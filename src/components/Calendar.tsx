@@ -96,8 +96,6 @@ export default function Calendar({
                     ? "bg-emerald-700 text-white border-emerald-700 hover:bg-emerald-700"
                     : showVariant && hasAvailability
                     ? "bg-emerald-100 border-emerald-500 text-emerald-900 font-bold hover:bg-emerald-200"
-                    : showVariant && hasNoGuideRental
-                    ? "bg-amber-50 border-amber-400 text-amber-800 font-semibold hover:bg-amber-100"
                     : !disabled
                     ? "border-transparent hover:bg-emerald-50"
                     : ""
@@ -110,7 +108,7 @@ export default function Calendar({
                 <span className="text-[9px] leading-none">予約可</span>
               )}
               {showVariant && hasNoGuideRental && (
-                <span className="text-[9px] leading-none">レンタルのみ</span>
+                <span className="absolute bottom-1 w-1 h-1 rounded-full bg-amber-400" />
               )}
             </button>
           );
@@ -118,7 +116,7 @@ export default function Calendar({
       </div>
 
       <p className="text-xs text-neutral-500 mt-2">
-        緑色の日: ガイド付きツアーが予約可能です。オレンジ色の日: ガイドの運行はありませんが、通常のレンタルはご利用いただけます。
+        緑色の日はガイド付きツアーが予約可能です。オレンジの点がついた日はガイドの運行はありませんが、通常のレンタルはご利用いただけます。
       </p>
     </div>
   );
