@@ -32,7 +32,16 @@ export default function ActivityCreateForm() {
         <input name="highlights" placeholder="例: 期間限定・今だけ半額！" className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full" />
       </label>
       <label className="text-sm sm:col-span-2">
-        画像URL(任意)
+        画像をアップロード(任意・JPEG/PNG/WebP/GIF、5MBまで)
+        <input
+          type="file"
+          name="imageFile"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full bg-white"
+        />
+      </label>
+      <label className="text-sm sm:col-span-2">
+        または画像URLを直接指定(任意・アップロードした場合はそちらが優先されます)
         <input name="imageUrl" placeholder="https://..." className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full" />
       </label>
       <label className="text-sm sm:col-span-2">

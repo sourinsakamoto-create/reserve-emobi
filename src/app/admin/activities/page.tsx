@@ -57,15 +57,34 @@ export default async function AdminActivitiesPage() {
                   className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full"
                 />
               </label>
-              <label className="text-sm sm:col-span-2">
-                画像URL
-                <input
-                  name="imageUrl"
-                  defaultValue={activity.imageUrl ?? ""}
-                  placeholder="https://..."
-                  className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full"
-                />
-              </label>
+              <div className="sm:col-span-2">
+                {activity.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={activity.imageUrl}
+                    alt=""
+                    className="w-40 h-28 object-cover rounded-lg border border-neutral-200 mb-2"
+                  />
+                )}
+                <label className="text-sm block">
+                  画像をアップロード(JPEG/PNG/WebP/GIF、5MBまで・選択すると現在の画像を置き換えます)
+                  <input
+                    type="file"
+                    name="imageFile"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full bg-white"
+                  />
+                </label>
+                <label className="text-sm block mt-2">
+                  または画像URLを直接指定(アップロードした場合はそちらが優先されます)
+                  <input
+                    name="imageUrl"
+                    defaultValue={activity.imageUrl ?? ""}
+                    placeholder="https://..."
+                    className="mt-1 border border-neutral-300 rounded-lg px-3 py-2 w-full"
+                  />
+                </label>
+              </div>
               <label className="text-sm sm:col-span-2">
                 説明(コースの見どころなど)
                 <textarea
