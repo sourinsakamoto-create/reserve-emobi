@@ -34,16 +34,17 @@ model Activity {
 // A concrete date + time slot with its own inventory (capacity),
 // which is how per-slot stock / sales control (在庫管理・販売設定) is expressed.
 model ScheduleSlot {
-  id         String    @id @default(cuid())
-  activityId String
-  activity   Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  date       String    // YYYY-MM-DD
-  startTime  String    // HH:mm
-  capacity   Int        // total number of guests sellable in this slot
-  isOpen     Boolean   @default(true) // 販売設定: 個別スロットの受付停止/再開
-  bookings   Booking[]
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id                 String              @id @default(cuid())
+  activityId         String
+  activity           Activity            @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  date               String              // YYYY-MM-DD
+  startTime          String              // HH:mm
+  capacity           Int                 // total number of guests sellable in this slot
+  isOpen             Boolean             @default(true) // 販売設定: 個別スロットの受付停止/再開
+  bookings           Booking[]
+  guideAvailabilities GuideAvailability[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@unique([activityId, date, startTime])
   @@index([date])
@@ -73,17 +74,30 @@ model StaffUser {
   assignedBookings Booking[]         @relation("AssignedGuide")
 }
 
-// A single date a guide has marked themselves available to work.
-// Presence of a row = available; no row = not (yet) marked available.
+// A guide marking themselves available for one specific departure (ScheduleSlot).
+// Presence of a row = available for that exact date+time+activity; no row = not
+// (yet) marked available. When multiple guides claim the same slot, the one
+// with the earliest createdAt is treated as the primary/assigned guide.
 model GuideAvailability {
-  id        String    @id @default(cuid())
-  guideId   String
-  guide     StaffUser @relation(fields: [guideId], references: [id], onDelete: Cascade)
-  date      String    // YYYY-MM-DD
-  createdAt DateTime  @default(now())
+  id             String       @id @default(cuid())
+  guideId        String
+  guide          StaffUser    @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  scheduleSlotId String
+  scheduleSlot   ScheduleSlot @relation(fields: [scheduleSlotId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
 
-  @@unique([guideId, date])
-  @@index([date])
+  @@unique([guideId, scheduleSlotId])
+  @@index([scheduleSlotId])
+}
+
+// Singleton row (one record, id="singleton") for site-wide booking behavior toggles.
+model BookingSettings {
+  id                       String   @id @default("singleton")
+  // When true, a departure can only be booked if at least one guide has
+  // marked themselves available for it. Defaults to false so turning on
+  // guide scheduling never silently blocks bookings until explicitly enabled.
+  requireGuideAvailability Boolean  @default(false)
+  updatedAt                DateTime @updatedAt
 }
 
 // Singleton row (one record, id="singleton") holding admin-editable

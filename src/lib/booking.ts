@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendMail, getAdminNotificationEmail } from "@/lib/mailer";
 import { DEFAULT_TEMPLATES, renderTemplate, type EmailTemplateVars } from "@/lib/emailTemplates";
+import { isGuideAvailabilityRequired } from "@/lib/guideAvailability";
 import type { BookingFormInput } from "@/lib/validation";
 
 export class BookingError extends Error {}
@@ -13,6 +14,7 @@ type BookingWithSlot = {
   numAdults: number;
   numChildren: number;
   notes: string | null;
+  guide: { name: string; email: string } | null;
   scheduleSlot: {
     date: string;
     startTime: string;
@@ -73,12 +75,22 @@ function templateVars(booking: BookingWithSlot): EmailTemplateVars {
   };
 }
 
+const bookingInclude = {
+  scheduleSlot: { include: { activity: true } },
+  guide: true,
+} as const;
+
 /**
  * Creates a booking after re-checking remaining capacity inside a transaction,
  * so two customers submitting at the same time can't both book the last seats.
+ * If guide availability is required (BookingSettings.requireGuideAvailability),
+ * a slot with no guide registered is rejected. Whether or not that's enabled,
+ * the booking is auto-assigned to whichever guide registered availability for
+ * the slot first (if any).
  */
 export async function createBooking(input: BookingFormInput) {
   const requested = input.numAdults + input.numChildren;
+  const guideRequired = await isGuideAvailabilityRequired();
 
   const booking = await prisma.$transaction(async (tx) => {
     const slot = await tx.scheduleSlot.findUnique({
@@ -102,6 +114,15 @@ export async function createBooking(input: BookingFormInput) {
       );
     }
 
+    const primaryAvailability = await tx.guideAvailability.findFirst({
+      where: { scheduleSlotId: input.scheduleSlotId },
+      orderBy: { createdAt: "asc" },
+    });
+
+    if (guideRequired && !primaryAvailability) {
+      throw new BookingError("申し訳ございません、この時間枠は現在担当者が未定のため予約できません。");
+    }
+
     return tx.booking.create({
       data: {
         scheduleSlotId: input.scheduleSlotId,
@@ -112,8 +133,9 @@ export async function createBooking(input: BookingFormInput) {
         numAdults: input.numAdults,
         numChildren: input.numChildren,
         notes: input.notes || null,
+        guideId: primaryAvailability?.guideId ?? null,
       },
-      include: { scheduleSlot: { include: { activity: true } } },
+      include: bookingInclude,
     });
   });
 
@@ -130,7 +152,7 @@ export async function cancelBooking(bookingId: string) {
   const booking = await prisma.booking.update({
     where: { id: bookingId },
     data: { status: "CANCELLED" },
-    include: { scheduleSlot: { include: { activity: true } } },
+    include: bookingInclude,
   });
 
   await notifyBooking(booking, "cancellation", "予約がキャンセルされました。");
@@ -145,7 +167,10 @@ export type BookingUpdateInput = Omit<BookingFormInput, "scheduleSlotId"> & {
 /**
  * Admin-side edit of an existing (confirmed) booking's slot/details.
  * Re-checks remaining capacity on the target slot, excluding this
- * booking's own current allocation, inside a transaction.
+ * booking's own current allocation, inside a transaction. Guide
+ * availability is NOT enforced here — admins can move a booking to any
+ * open slot regardless of guide coverage. The assigned guide is left
+ * as-is; admins can reassign it separately from the bookings list.
  */
 export async function updateBooking(bookingId: string, input: BookingUpdateInput) {
   const requested = input.numAdults + input.numChildren;
@@ -183,7 +208,7 @@ export async function updateBooking(bookingId: string, input: BookingUpdateInput
         numChildren: input.numChildren,
         notes: input.notes || null,
       },
-      include: { scheduleSlot: { include: { activity: true } } },
+      include: bookingInclude,
     });
   });
 
@@ -196,6 +221,12 @@ const ADMIN_SUBJECT_PREFIX: Record<EmailKind, string> = {
   confirmation: "【新規予約】",
   cancellation: "【予約キャンセル】",
   change: "【予約変更】",
+};
+
+const GUIDE_SUBJECT_PREFIX: Record<EmailKind, string> = {
+  confirmation: "【担当予約のお知らせ】",
+  cancellation: "【担当予約キャンセルのお知らせ】",
+  change: "【担当予約変更のお知らせ】",
 };
 
 type EmailKind = "confirmation" | "cancellation" | "change";
@@ -222,6 +253,13 @@ async function notifyBooking(booking: BookingWithSlot, kind: EmailKind, adminInt
           to: adminEmail,
           subject: `${ADMIN_SUBJECT_PREFIX[kind]}${vars.activityName} - ${vars.date} ${vars.time}`,
           text: `${adminIntro}\n\n${vars.summary}\nメール: ${booking.customerEmail}`,
+        })
+      : Promise.resolve(),
+    booking.guide
+      ? sendMail({
+          to: booking.guide.email,
+          subject: `${GUIDE_SUBJECT_PREFIX[kind]}${vars.activityName} - ${vars.date} ${vars.time}`,
+          text: `${booking.guide.name} 様\n\nご担当の予約について更新がありました。\n\n${vars.summary}\nお客様メール: ${booking.customerEmail}`,
         })
       : Promise.resolve(),
   ]);

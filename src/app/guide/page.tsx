@@ -25,10 +25,10 @@ const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 export default async function GuidePage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; date?: string }>;
 }) {
   const session = await getSessionUser();
-  const { month: monthParam } = await searchParams;
+  const { month: monthParam, date: dateParam } = await searchParams;
 
   const today = startOfDay(new Date());
   const viewedMonth = monthParam
@@ -39,15 +39,38 @@ export default async function GuidePage({
   const gridEnd = endOfWeek(endOfMonth(viewedMonth));
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
 
-  const availabilities = session
-    ? await prisma.guideAvailability.findMany({
-        where: {
-          guideId: session.userId,
-          date: { gte: format(gridStart, "yyyy-MM-dd"), lte: format(gridEnd, "yyyy-MM-dd") },
-        },
-      })
-    : [];
-  const availableSet = new Set(availabilities.map((a) => a.date));
+  let selectedDate = dateParam;
+  if (!selectedDate) {
+    // Default to today if it has slots, otherwise the nearest upcoming date
+    // that does (seed/admin-generated schedules often start tomorrow).
+    const todayStr = format(today, "yyyy-MM-dd");
+    const nextSlot = await prisma.scheduleSlot.findFirst({
+      where: { date: { gte: todayStr } },
+      orderBy: { date: "asc" },
+    });
+    selectedDate = nextSlot?.date ?? todayStr;
+  }
+
+  const [myAvailabilitiesInMonth, slotsForSelectedDate] = session
+    ? await Promise.all([
+        prisma.guideAvailability.findMany({
+          where: {
+            guideId: session.userId,
+            scheduleSlot: {
+              date: { gte: format(gridStart, "yyyy-MM-dd"), lte: format(gridEnd, "yyyy-MM-dd") },
+            },
+          },
+          include: { scheduleSlot: true },
+        }),
+        prisma.scheduleSlot.findMany({
+          where: { date: selectedDate },
+          include: { activity: true, guideAvailabilities: { where: { guideId: session.userId } } },
+          orderBy: [{ startTime: "asc" }, { activity: { name: "asc" } }],
+        }),
+      ])
+    : [[], []];
+
+  const datesWithAvailability = new Set(myAvailabilitiesInMonth.map((a) => a.scheduleSlot.date));
 
   const isCurrentMonth = isSameMonth(viewedMonth, today);
   const prevMonthParam = format(subMonths(viewedMonth, 1), "yyyy-MM");
@@ -57,7 +80,7 @@ export default async function GuidePage({
     <div className="mx-auto max-w-2xl px-4 py-10">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold">出勤可能日の設定</h1>
+          <h1 className="text-xl font-bold">出勤可能な便の設定</h1>
           <p className="text-sm text-neutral-500 mt-1">{session?.name} 様</p>
         </div>
         <form action={logoutAction}>
@@ -68,10 +91,10 @@ export default async function GuidePage({
       </div>
 
       <p className="text-sm text-neutral-600 mb-4">
-        出勤できる日をクリックして緑色にしてください。もう一度クリックすると解除できます。
+        日付をクリックすると、その日の便(アクティビティ・時間)が一覧表示されます。担当できる便のボタンを押して緑色にしてください。
       </p>
 
-      <div className="border border-neutral-200 rounded-lg p-4 bg-white max-w-md">
+      <div className="border border-neutral-200 rounded-lg p-4 bg-white max-w-md mb-6">
         <div className="flex items-center justify-between mb-2">
           {isCurrentMonth ? (
             <span className="px-2 py-1 text-sm opacity-30">←</span>
@@ -105,29 +128,64 @@ export default async function GuidePage({
             const dateStr = format(day, "yyyy-MM-dd");
             const inMonth = isSameMonth(day, viewedMonth);
             const isPast = isBefore(day, today);
-            const isAvailable = availableSet.has(dateStr);
+            const hasAvailability = datesWithAvailability.has(dateStr);
+            const isSelected = selectedDate === dateStr;
             const disabled = !inMonth || isPast;
 
             return (
-              <form key={dateStr} action={toggleGuideAvailabilityAction}>
-                <input type="hidden" name="date" value={dateStr} />
-                <input type="hidden" name="isAvailable" value={String(isAvailable)} />
-                <button
-                  type="submit"
-                  disabled={disabled}
-                  className={`w-full aspect-square rounded-lg text-sm flex items-center justify-center
-                    ${!inMonth ? "text-neutral-300" : ""}
-                    ${disabled ? "cursor-not-allowed text-neutral-300" : "cursor-pointer hover:bg-emerald-50"}
-                    ${isAvailable ? "bg-emerald-700 text-white hover:bg-emerald-800" : ""}
-                    ${isToday(day) && !isAvailable ? "font-bold text-emerald-700" : ""}
-                  `}
-                >
-                  {format(day, "d")}
-                </button>
-              </form>
+              <Link
+                key={dateStr}
+                href={disabled ? "#" : `/guide?month=${monthParam ?? format(viewedMonth, "yyyy-MM")}&date=${dateStr}`}
+                aria-disabled={disabled}
+                className={`aspect-square rounded-lg text-sm flex items-center justify-center relative
+                  ${!inMonth ? "text-neutral-300" : ""}
+                  ${disabled ? "pointer-events-none text-neutral-300" : "cursor-pointer hover:bg-emerald-50"}
+                  ${isSelected ? "bg-emerald-700 text-white hover:bg-emerald-700" : ""}
+                  ${isToday(day) && !isSelected ? "font-bold text-emerald-700" : ""}
+                `}
+              >
+                {format(day, "d")}
+                {hasAvailability && !isSelected && inMonth && !isPast && (
+                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-emerald-500" />
+                )}
+              </Link>
             );
           })}
         </div>
+      </div>
+
+      <div className="border border-neutral-200 rounded-lg p-4 bg-white">
+        <h2 className="font-semibold mb-3">{selectedDate} の便</h2>
+        {slotsForSelectedDate.length === 0 ? (
+          <p className="text-sm text-neutral-500">この日はまだ便が設定されていません。</p>
+        ) : (
+          <ul className="space-y-2">
+            {slotsForSelectedDate.map((slot) => {
+              const isAvailable = slot.guideAvailabilities.length > 0;
+              return (
+                <li key={slot.id}>
+                  <form action={toggleGuideAvailabilityAction}>
+                    <input type="hidden" name="scheduleSlotId" value={slot.id} />
+                    <input type="hidden" name="isAvailable" value={String(isAvailable)} />
+                    <button
+                      type="submit"
+                      className={`w-full flex items-center justify-between border rounded-lg px-3 py-2 text-sm ${
+                        isAvailable
+                          ? "bg-emerald-700 text-white border-emerald-700"
+                          : "border-neutral-300 hover:bg-neutral-50"
+                      }`}
+                    >
+                      <span>
+                        {slot.startTime} - {slot.activity.name}
+                      </span>
+                      <span className="text-xs">{isAvailable ? "担当可能" : "未設定"}</span>
+                    </button>
+                  </form>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );

@@ -10,7 +10,13 @@ type SlotForForm = {
   startTime: string;
   remaining: number;
   isOpen: boolean;
+  hasGuide: boolean;
+  guideRequired: boolean;
 };
+
+function isSlotBookable(slot: SlotForForm) {
+  return slot.isOpen && slot.remaining > 0 && (!slot.guideRequired || slot.hasGuide);
+}
 
 const initialState: BookingActionState = { status: "idle" };
 
@@ -18,7 +24,7 @@ export default function BookingForm({ slots }: { slots: SlotForForm[] }) {
   const [state, formAction, pending] = useActionState(createBookingAction, initialState);
 
   const availableDates = useMemo(() => {
-    const set = new Set(slots.filter((s) => s.isOpen && s.remaining > 0).map((s) => s.date));
+    const set = new Set(slots.filter(isSlotBookable).map((s) => s.date));
     return Array.from(set).sort();
   }, [slots]);
 
@@ -58,7 +64,7 @@ export default function BookingForm({ slots }: { slots: SlotForForm[] }) {
           <h3 className="font-semibold mb-2">2. 時間を選択</h3>
           <div className="grid gap-2 sm:grid-cols-3">
             {slotsForDate.map((slot) => {
-              const disabled = !slot.isOpen || slot.remaining <= 0;
+              const disabled = !isSlotBookable(slot);
               return (
                 <label
                   key={slot.id}
@@ -82,7 +88,11 @@ export default function BookingForm({ slots }: { slots: SlotForForm[] }) {
                     {slot.startTime}
                   </span>
                   <span className="text-xs">
-                    {disabled ? "満席/停止中" : `残り${slot.remaining}名`}
+                    {!slot.isOpen || slot.remaining <= 0
+                      ? "満席/停止中"
+                      : slot.guideRequired && !slot.hasGuide
+                      ? "担当者未定"
+                      : `残り${slot.remaining}名`}
                   </span>
                 </label>
               );
