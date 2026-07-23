@@ -27,23 +27,8 @@ export default async function HomePage() {
             return (
               <li
                 key={activity.id}
-                className="border border-neutral-200 rounded-xl bg-white shadow-sm overflow-hidden flex flex-col md:flex-row"
+                className="border border-neutral-200 rounded-xl bg-white shadow-sm overflow-hidden"
               >
-                <div className="md:w-2/5 lg:w-1/3 shrink-0 bg-neutral-100">
-                  {activity.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={activity.imageUrl}
-                      alt={activity.name}
-                      className="w-full h-56 md:h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-56 md:h-full flex items-center justify-center text-5xl">
-                      🛺
-                    </div>
-                  )}
-                </div>
-
                 <div className="flex flex-col flex-1 p-6">
                   <h2 className="text-xl font-semibold">{activity.name}</h2>
                   {activity.highlights && (

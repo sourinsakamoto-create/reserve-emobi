@@ -22,15 +22,6 @@ export default async function ActivityPage({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      {activity.imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={activity.imageUrl}
-          alt={activity.name}
-          className="w-full h-64 object-cover rounded-xl mb-6"
-        />
-      )}
-
       <h1 className="text-2xl font-bold">{activity.name}</h1>
       {activity.highlights && (
         <p className="text-emerald-700 font-medium mt-1">{activity.highlights}</p>
