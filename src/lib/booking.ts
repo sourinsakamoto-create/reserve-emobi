@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { sendMail, getAdminNotificationEmail } from "@/lib/mailer";
 import { DEFAULT_TEMPLATES, renderTemplate, type EmailTemplateVars } from "@/lib/emailTemplates";
 import { isGuideAvailabilityRequired } from "@/lib/guideAvailability";
+import { getSiteUrl } from "@/lib/site";
 import type { BookingFormInput } from "@/lib/validation";
 
 export class BookingError extends Error {}
@@ -72,6 +73,7 @@ function templateVars(booking: BookingWithSlot): EmailTemplateVars {
     phone: booking.customerPhone,
     notes: booking.notes ?? "",
     summary: bookingSummary(booking),
+    confirmationUrl: `${getSiteUrl()}/booking/${booking.id}`,
   };
 }
 

@@ -25,10 +25,11 @@ export default async function AdminSchedulePage({
   const slots = activity
     ? await prisma.scheduleSlot.findMany({
         where: { activityId: activity.id, date: { gte: today }, deletedAt: null },
-        include: { bookings: true },
+        include: { bookings: true, guideAvailabilities: true },
         orderBy: [{ date: "asc" }, { startTime: "asc" }],
       })
     : [];
+  const guideCoveredCount = slots.filter((s) => s.guideAvailabilities.length > 0).length;
 
   return (
     <div className="space-y-8">
@@ -61,6 +62,16 @@ export default async function AdminSchedulePage({
         <>
           <BulkGenerateForm activityId={activity.id} />
 
+          <p className="text-sm text-neutral-600">
+            設定済みの枠: {slots.length}件のうち、ガイドが配置され運行可能な枠:{" "}
+            <span className="font-semibold text-emerald-700">{guideCoveredCount}件</span>
+            (未配置: {slots.length - guideCoveredCount}件)
+            <br />
+            <span className="text-xs text-neutral-500">
+              枠を作成しただけではスタッフが運行できるとは限りません。「運行可否」列で実際にガイドが配置されているかを確認してください。
+            </span>
+          </p>
+
           <div className="border border-neutral-200 rounded-lg overflow-hidden bg-white">
             <table className="w-full text-sm">
               <thead className="bg-neutral-100 text-left">
@@ -71,13 +82,14 @@ export default async function AdminSchedulePage({
                   <th className="px-3 py-2">予約済</th>
                   <th className="px-3 py-2">残り</th>
                   <th className="px-3 py-2">販売状態</th>
+                  <th className="px-3 py-2">運行可否</th>
                   <th className="px-3 py-2"></th>
                 </tr>
               </thead>
               <tbody>
                 {slots.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-3 py-4 text-center text-neutral-500">
+                    <td colSpan={8} className="px-3 py-4 text-center text-neutral-500">
                       枠がありません。上のフォームから作成してください。
                     </td>
                   </tr>
@@ -85,6 +97,7 @@ export default async function AdminSchedulePage({
                 {slots.map((slot) => {
                   const booked = slotBookedCount(slot.bookings);
                   const remaining = slot.capacity - booked;
+                  const guideCount = slot.guideAvailabilities.length;
                   return (
                     <tr key={slot.id} className="border-t border-neutral-100">
                       <td className="px-3 py-2">{slot.date}</td>
@@ -121,6 +134,17 @@ export default async function AdminSchedulePage({
                             {slot.isOpen ? "受付中" : "停止中"}
                           </button>
                         </form>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={`text-xs font-medium rounded-full px-2 py-1 ${
+                            guideCount > 0
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-amber-100 text-amber-800"
+                          }`}
+                        >
+                          {guideCount > 0 ? `運行可(${guideCount}名)` : "ガイド未配置"}
+                        </span>
                       </td>
                       <td className="px-3 py-2">
                         <form action={deleteSlotAction}>

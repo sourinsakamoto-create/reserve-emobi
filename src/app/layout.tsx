@@ -38,6 +38,9 @@ export default function RootLayout({
               <Link href="/" className="hover:underline">
                 アクティビティ一覧
               </Link>
+              <Link href="/my-booking" className="hover:underline">
+                予約を確認する
+              </Link>
             </nav>
           </div>
         </header>

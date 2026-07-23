@@ -77,6 +77,11 @@ export const staffCreateFormSchema = z.object({
   role: z.enum(["ADMIN", "GUIDE"]),
 });
 
+export const staffUpdateFormSchema = z.object({
+  name: z.string().trim().min(1, "名前を入力してください").max(100),
+  email: z.string().trim().email("メールアドレスの形式が正しくありません"),
+});
+
 export const changePasswordFormSchema = z.object({
   currentPassword: z.string().min(1, "現在のパスワードを入力してください"),
   newPassword: z.string().min(8, "新しいパスワードは8文字以上で入力してください").max(200),

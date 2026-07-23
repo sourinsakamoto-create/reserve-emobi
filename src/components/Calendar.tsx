@@ -80,6 +80,7 @@ export default function Calendar({
           const hasNoGuideRental = !hasAvailability && noGuideSet.has(dateStr);
           const isSelected = selectedDate === dateStr;
           const disabled = !inMonth || isPast || (!hasAvailability && !hasNoGuideRental);
+          const showVariant = inMonth && !isPast && !isSelected;
 
           return (
             <button
@@ -87,19 +88,29 @@ export default function Calendar({
               type="button"
               disabled={disabled}
               onClick={() => onSelectDate(dateStr)}
-              className={`aspect-square rounded-lg text-sm flex items-center justify-center relative
-                ${!inMonth ? "text-neutral-300" : ""}
-                ${disabled ? "cursor-not-allowed text-neutral-300" : "cursor-pointer hover:bg-emerald-50"}
-                ${isSelected ? "bg-emerald-700 text-white hover:bg-emerald-700" : ""}
-                ${isToday(day) && !isSelected ? "font-bold text-emerald-700" : ""}
+              className={`aspect-square rounded-lg text-sm flex flex-col items-center justify-center gap-0.5 relative border-2
+                ${!inMonth ? "text-neutral-300 border-transparent" : ""}
+                ${disabled ? "cursor-not-allowed text-neutral-300 border-transparent" : "cursor-pointer"}
+                ${
+                  isSelected
+                    ? "bg-emerald-700 text-white border-emerald-700 hover:bg-emerald-700"
+                    : showVariant && hasAvailability
+                    ? "bg-emerald-100 border-emerald-500 text-emerald-900 font-bold hover:bg-emerald-200"
+                    : showVariant && hasNoGuideRental
+                    ? "bg-amber-50 border-amber-400 text-amber-800 font-semibold hover:bg-amber-100"
+                    : !disabled
+                    ? "border-transparent hover:bg-emerald-50"
+                    : ""
+                }
+                ${isToday(day) && !isSelected && !showVariant ? "font-bold text-emerald-700" : ""}
               `}
             >
-              {format(day, "d")}
-              {hasAvailability && !isSelected && inMonth && !isPast && (
-                <span className="absolute bottom-1 w-1 h-1 rounded-full bg-emerald-500" />
+              <span>{format(day, "d")}</span>
+              {showVariant && hasAvailability && (
+                <span className="text-[9px] leading-none">予約可</span>
               )}
-              {hasNoGuideRental && !isSelected && inMonth && !isPast && (
-                <span className="absolute bottom-1 w-1 h-1 rounded-full bg-amber-500" />
+              {showVariant && hasNoGuideRental && (
+                <span className="text-[9px] leading-none">レンタルのみ</span>
               )}
             </button>
           );
@@ -107,7 +118,7 @@ export default function Calendar({
       </div>
 
       <p className="text-xs text-neutral-500 mt-2">
-        緑の点: ガイド付きツアーが予約可能です。オレンジの点: ガイドの運行はありませんが、通常のレンタルはご利用いただけます。
+        緑色の日: ガイド付きツアーが予約可能です。オレンジ色の日: ガイドの運行はありませんが、通常のレンタルはご利用いただけます。
       </p>
     </div>
   );

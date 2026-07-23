@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { staffCreateFormSchema } from "@/lib/validation";
+import { staffCreateFormSchema, staffUpdateFormSchema } from "@/lib/validation";
 import { hashPassword } from "@/lib/password";
 import { getSessionUser } from "@/lib/session";
 
@@ -45,6 +45,50 @@ export async function createStaffAction(
 
   revalidatePath("/admin/staff");
   return { status: "success" };
+}
+
+export async function updateStaffAction(formData: FormData) {
+  const id = String(formData.get("id"));
+
+  const parsed = staffUpdateFormSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+  });
+  if (!parsed.success) return;
+
+  const existing = await prisma.staffUser.findUnique({ where: { email: parsed.data.email } });
+  if (existing && existing.id !== id) return; // email already used by another account
+
+  await prisma.staffUser.update({
+    where: { id },
+    data: { name: parsed.data.name, email: parsed.data.email },
+  });
+  revalidatePath("/admin/staff");
+}
+
+export async function deleteStaffAction(formData: FormData) {
+  const id = String(formData.get("id"));
+
+  const session = await getSessionUser();
+  if (session?.userId === id) {
+    // Refuse to let an admin delete their own account (would lock them out mid-session).
+    return;
+  }
+
+  const target = await prisma.staffUser.findUnique({ where: { id } });
+  if (!target) return;
+
+  if (target.role === "ADMIN") {
+    const otherActiveAdmins = await prisma.staffUser.count({
+      where: { role: "ADMIN", isActive: true, id: { not: id } },
+    });
+    if (otherActiveAdmins === 0) return; // refuse to remove the last admin account
+  }
+
+  await prisma.staffUser.delete({ where: { id } });
+  revalidatePath("/admin/staff");
+  revalidatePath("/admin/guides");
+  revalidatePath("/admin/bookings");
 }
 
 export async function toggleStaffActiveAction(formData: FormData) {

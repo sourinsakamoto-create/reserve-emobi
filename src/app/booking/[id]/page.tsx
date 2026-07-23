@@ -46,9 +46,17 @@ export default async function BookingConfirmationPage({
         {booking.notes && <Row label="備考" value={booking.notes} />}
       </dl>
 
+      <p className="mt-6 text-xs text-neutral-500">
+        このページのURLは確認メールにも記載しています。次回以降は{" "}
+        <Link href="/my-booking" className="underline">
+          予約を確認する
+        </Link>{" "}
+        ページからメールアドレスと電話番号でも確認いただけます。
+      </p>
+
       <Link
         href="/"
-        className="inline-block mt-8 text-emerald-700 hover:underline text-sm"
+        className="inline-block mt-4 text-emerald-700 hover:underline text-sm"
       >
         ← アクティビティ一覧に戻る
       </Link>
