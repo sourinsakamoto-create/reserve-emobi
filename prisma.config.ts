@@ -10,6 +10,12 @@ export default defineConfig({
     seed: "tsx prisma/seed.ts",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // `prisma migrate deploy` needs a direct (non-pooled) connection: it
+    // takes a session-level Postgres advisory lock, which a connection
+    // pooler like Neon's pgbouncer-based pooled endpoint doesn't support
+    // reliably and can cause migrations to time out waiting for the lock.
+    // DIRECT_URL is optional — if unset, falls back to DATABASE_URL so
+    // local development (a single, unpooled Postgres) keeps working as-is.
+    url: process.env["DIRECT_URL"] || process.env["DATABASE_URL"],
   },
 });

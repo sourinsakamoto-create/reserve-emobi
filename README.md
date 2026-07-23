@@ -49,6 +49,12 @@ PostgreSQL データベースが手元にない場合は、[Vercel Postgres](htt
 ```
 DATABASE_URL="postgresql://user:password@host:5432/dbname"
 
+# 任意。DATABASE_URL が Neon等の「プーリング接続」文字列の場合のみ設定してください。
+# 同じデータベースの「直接接続(Direct connection)」文字列を指定します。
+# マイグレーション実行時はセッション単位のロックを取得する必要があり、
+# プーリング接続だとこれに失敗することがあるためです。
+DIRECT_URL=
+
 # スタッフログインのセッション署名に使う秘密鍵。以下で生成してください:
 #   openssl rand -base64 32
 AUTH_SECRET=
@@ -124,6 +130,16 @@ npm run vercel-build
 (内部的に `prisma migrate deploy && next build` を実行します。)
 
 また Project Settings → Environment Variables に `DATABASE_URL`(PostgreSQL接続文字列)を設定してください。Vercel の Storage タブから Postgres を作成した場合は自動で設定されます。初回デプロイ後、`npm run db:seed` をローカルから対象DBに向けて一度実行するとサンプルデータが投入されます。
+
+**Neonを使っている場合の注意**: ビルドログに以下のようなエラー(`P1002`)が出る場合は、`DATABASE_URL` に設定しているのがプーリング接続(ホスト名に `-pooler` が含まれるもの)である可能性があります。
+
+```
+Error: P1002
+The database server was reached but timed out.
+Context: Timed out trying to acquire a postgres advisory lock
+```
+
+マイグレーションはプーリング接続では正しく動作しないことがあるため、Neonのダッシュボードで「Direct connection(直接接続)」の接続文字列を確認し、Vercel の Environment Variables に `DIRECT_URL` として追加してください(`DATABASE_URL` はプーリング接続のままで問題ありません)。追加後は再デプロイが必要です。
 
 ## 管理画面の認証について
 
