@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { cancelBookingAction } from "./actions";
 
@@ -62,12 +63,20 @@ export default async function AdminBookingsPage() {
                 </td>
                 <td className="px-3 py-2">
                   {b.status === "CONFIRMED" && (
-                    <form action={cancelBookingAction}>
-                      <input type="hidden" name="id" value={b.id} />
-                      <button type="submit" className="text-xs text-red-600 hover:underline">
-                        キャンセル
-                      </button>
-                    </form>
+                    <div className="flex gap-3">
+                      <Link
+                        href={`/admin/bookings/${b.id}/edit`}
+                        className="text-xs text-emerald-700 hover:underline"
+                      >
+                        編集
+                      </Link>
+                      <form action={cancelBookingAction}>
+                        <input type="hidden" name="id" value={b.id} />
+                        <button type="submit" className="text-xs text-red-600 hover:underline">
+                          キャンセル
+                        </button>
+                      </form>
+                    </div>
                   )}
                 </td>
               </tr>

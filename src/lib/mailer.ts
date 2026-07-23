@@ -21,6 +21,11 @@ function getTransporter() {
     port: Number(SMTP_PORT),
     secure: Number(SMTP_PORT) === 465,
     auth: { user: SMTP_USER, pass: SMTP_PASS },
+    // Keep these short: booking/cancel/edit requests wait on this, and
+    // serverless functions (e.g. Vercel) have their own execution time limit.
+    connectionTimeout: 6000,
+    greetingTimeout: 6000,
+    socketTimeout: 6000,
   });
   return transporter;
 }
