@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { createBookingAction, type BookingActionState } from "@/app/activities/[slug]/actions";
+import Calendar from "@/components/Calendar";
 
 type SlotForForm = {
   id: string;
@@ -16,12 +17,12 @@ const initialState: BookingActionState = { status: "idle" };
 export default function BookingForm({ slots }: { slots: SlotForForm[] }) {
   const [state, formAction, pending] = useActionState(createBookingAction, initialState);
 
-  const dates = useMemo(() => {
-    const set = new Set(slots.map((s) => s.date));
+  const availableDates = useMemo(() => {
+    const set = new Set(slots.filter((s) => s.isOpen && s.remaining > 0).map((s) => s.date));
     return Array.from(set).sort();
   }, [slots]);
 
-  const [selectedDate, setSelectedDate] = useState(dates[0] ?? "");
+  const [selectedDate, setSelectedDate] = useState(availableDates[0] ?? "");
   const [selectedSlotId, setSelectedSlotId] = useState<string>("");
 
   const slotsForDate = slots.filter((s) => s.date === selectedDate);
@@ -38,23 +39,17 @@ export default function BookingForm({ slots }: { slots: SlotForForm[] }) {
 
       <div>
         <h3 className="font-semibold mb-2">1. 日付を選択</h3>
-        {dates.length === 0 ? (
+        {availableDates.length === 0 ? (
           <p className="text-sm text-neutral-500">現在予約可能な日程がありません。</p>
         ) : (
-          <select
-            className="border border-neutral-300 rounded-lg px-3 py-2 w-full sm:w-64"
-            value={selectedDate}
-            onChange={(e) => {
-              setSelectedDate(e.target.value);
+          <Calendar
+            availableDates={availableDates}
+            selectedDate={selectedDate}
+            onSelectDate={(d) => {
+              setSelectedDate(d);
               setSelectedSlotId("");
             }}
-          >
-            {dates.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
+          />
         )}
       </div>
 
