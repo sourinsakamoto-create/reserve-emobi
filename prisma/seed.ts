@@ -1,6 +1,7 @@
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { addDays, format } from "date-fns";
+import bcrypt from "bcryptjs";
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is not set. Configure a PostgreSQL connection string.");
@@ -81,6 +82,27 @@ async function main() {
         });
       }
     }
+  }
+
+  const adminEmail = process.env.INITIAL_ADMIN_EMAIL;
+  const adminPassword = process.env.INITIAL_ADMIN_PASSWORD;
+  if (adminEmail && adminPassword) {
+    const passwordHash = await bcrypt.hash(adminPassword, 10);
+    await prisma.staffUser.upsert({
+      where: { email: adminEmail },
+      update: {},
+      create: {
+        email: adminEmail,
+        name: "管理者",
+        role: "ADMIN",
+        passwordHash,
+      },
+    });
+    console.log(`Admin account ready: ${adminEmail}`);
+  } else {
+    console.warn(
+      "INITIAL_ADMIN_EMAIL / INITIAL_ADMIN_PASSWORD not set — skipped creating an admin account."
+    );
   }
 
   console.log("Seed data created.");

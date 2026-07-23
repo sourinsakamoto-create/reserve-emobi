@@ -38,9 +38,6 @@ export default function RootLayout({
               <Link href="/" className="hover:underline">
                 アクティビティ一覧
               </Link>
-              <Link href="/admin" className="hover:underline opacity-80">
-                管理画面
-              </Link>
             </nav>
           </div>
         </header>

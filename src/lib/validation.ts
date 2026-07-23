@@ -65,6 +65,18 @@ export const scheduleSlotFormSchema = z.object({
   capacity: z.coerce.number().int().min(1).max(500),
 });
 
+export const loginFormSchema = z.object({
+  email: z.string().trim().email("メールアドレスの形式が正しくありません"),
+  password: z.string().min(1, "パスワードを入力してください"),
+});
+
+export const staffCreateFormSchema = z.object({
+  email: z.string().trim().email("メールアドレスの形式が正しくありません"),
+  name: z.string().trim().min(1, "名前を入力してください").max(100),
+  password: z.string().min(8, "パスワードは8文字以上で入力してください").max(200),
+  role: z.enum(["ADMIN", "GUIDE"]),
+});
+
 export const bulkGenerateSlotsSchema = z.object({
   activityId: z.string().min(1),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),

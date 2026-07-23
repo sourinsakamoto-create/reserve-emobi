@@ -11,19 +11,22 @@
 - **メール通知**: 予約の確定・変更・キャンセル時にお客様へ通知メールを送信し、管理者通知用アドレスにも控えが届きます(SMTP未設定の場合は自動的にスキップされます)
 - **予約の編集**: 管理画面の予約一覧から、日時・人数・お客様情報を編集できます(在庫を再チェックしたうえで保存され、お客様へ変更通知メールが送られます)
 - **専用データベース**: このアプリ専用の PostgreSQL データベース (Prisma管理) を使用
+- **スタッフ認証**: `/admin`(管理者)と `/guide`(ガイド、準備中)はログイン必須。役割(admin/guide)ごとにアクセスできる範囲が分かれています
 
-管理画面: `/admin`
-- ダッシュボード、アクティビティ・販売設定、日程・在庫管理、予約一覧
+管理画面: `/admin`(要ログイン)
+- ダッシュボード、アクティビティ・販売設定、日程・在庫管理、予約一覧、スタッフ管理
 
 ## セットアップ
 
 ```bash
 npm install          # 依存関係のインストール(postinstallでPrisma Clientも生成されます)
-cp .env.example .env # 環境変数ファイルを作成し、DATABASE_URL に PostgreSQL の接続文字列を設定
+cp .env.example .env # 環境変数ファイルを作成し、DATABASE_URL・AUTH_SECRET等を設定(下記参照)
 npm run db:migrate   # マイグレーション実行
-npm run db:seed      # サンプルのアクティビティ・日程データを投入
+npm run db:seed      # サンプルのアクティビティ・日程データ + 初期管理者アカウントを投入
 npm run dev          # 開発サーバー起動 (http://localhost:3000)
 ```
+
+`npm run db:seed` 実行時に `.env` の `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` が設定されていれば、そのメールアドレス・パスワードで `/login` からログインできる最初の管理者アカウントが作成されます。それ以降のスタッフアカウント(追加の管理者・ガイド)は、ログイン後の「スタッフ管理」画面から追加できます。
 
 PostgreSQL データベースが手元にない場合は、[Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres) や [Neon](https://neon.tech)、[Supabase](https://supabase.com) 等で無料枠のデータベースを作成し、その接続文字列を `DATABASE_URL` に設定してください。
 
@@ -33,6 +36,14 @@ PostgreSQL データベースが手元にない場合は、[Vercel Postgres](htt
 
 ```
 DATABASE_URL="postgresql://user:password@host:5432/dbname"
+
+# スタッフログインのセッション署名に使う秘密鍵。以下で生成してください:
+#   openssl rand -base64 32
+AUTH_SECRET=
+
+# 初回の `npm run db:seed` でのみ使う、最初の管理者アカウントの作成用
+INITIAL_ADMIN_EMAIL=
+INITIAL_ADMIN_PASSWORD=
 
 # メール送信(任意・未設定でも予約自体は動作します)
 SMTP_HOST=
@@ -87,7 +98,12 @@ npm run vercel-build
 
 ## 管理画面の認証について
 
-⚠️ **現時点では管理画面 (`/admin` 以下) にログイン認証がありません。** 本番公開前に、必ずBasic認証やパスワード保護などを追加してください(誰でもアクセスできる状態で公開しないようご注意ください)。
+`/admin`(管理者専用)・`/guide`(ガイド専用、準備中)はログインが必須です。認証はメールアドレス+パスワードで、`StaffUser` テーブルで管理しています。
+
+- **役割**: `ADMIN`(全機能にアクセス可)・`GUIDE`(将来的に自分の出勤可能日の設定などに限定予定。現時点ではログイン後に簡単な準備中ページが表示されます)
+- **最初のアカウント**: `.env` に `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` を設定した状態で `npm run db:seed` を実行すると作成されます(Vercelにデプロイ済みの場合は、対象DBの `DATABASE_URL` をローカルの `.env` に設定した状態で一度実行してください)
+- **以降のアカウント追加**: `/admin/staff` から追加・パスワード再設定・無効化ができます
+- Vercelに新規で `AUTH_SECRET` を設定していない場合、ログインセッションが機能しません。必ず設定してください(値を変更すると既存のログインセッションは全て無効になります)
 
 ## 決済について
 
@@ -100,14 +116,20 @@ prisma/
   schema.prisma       # Activity / ScheduleSlot / Booking モデル
   seed.ts             # サンプルデータ投入スクリプト
 src/
+  proxy.ts             # /admin・/guide のログイン保護 (Next.js Proxy)
   lib/
     prisma.ts         # Prisma Client (PostgreSQL driver adapter使用)
     booking.ts         # 予約作成ロジック(在庫チェック + メール通知)
     mailer.ts          # メール送信ユーティリティ
     validation.ts       # zod バリデーションスキーマ
+    auth.ts             # セッショントークン(JWT)の発行・検証
+    password.ts         # パスワードのハッシュ化・検証
+    session.ts           # サーバーコンポーネント用セッション取得ヘルパー
   app/
     page.tsx            # アクティビティ一覧(トップページ)
     activities/[slug]/  # アクティビティ詳細 + 予約フォーム
     booking/[id]/        # 予約確認ページ
-    admin/               # 管理画面(ダッシュボード・販売設定・在庫管理・予約一覧)
+    login/                # スタッフログイン
+    guide/                # ガイド専用ページ(準備中)
+    admin/               # 管理画面(ダッシュボード・販売設定・在庫管理・予約一覧・スタッフ管理)
 ```
