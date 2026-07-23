@@ -84,12 +84,14 @@ Vercelにデプロイしている場合は、Project Settings → Environment Va
 
 1. Vercelダッシュボード → 対象プロジェクト → **Storage** タブ
 2. **Create Database** → **Blob** を選択して作成
-3. 作成すると `BLOB_READ_WRITE_TOKEN` が自動的にプロジェクトの環境変数に追加されます
+3. プロジェクトに接続する(接続すると `BLOB_STORE_ID` 等が自動的に環境変数へ追加されます)
 4. 再デプロイ
+
+最近のVercel Blobは `BLOB_STORE_ID` があれば自動的に認証されるため、`BLOB_READ_WRITE_TOKEN` を別途設定する必要はありません(ローカルの `npm run dev` からアップロードを試したい場合のみ、Blobストアの画面から `BLOB_READ_WRITE_TOKEN` をコピーして `.env` に設定してください)。
 
 この設定をしなくても、管理画面の「画像URLを直接指定」欄に外部の画像URLを入力する方法は引き続き使えます(その場合はアップロード機能は使わずスキップされます)。
 
-対応形式: JPEG・PNG・WebP・GIF、5MBまで。
+対応形式: JPEG・PNG・WebP・GIF、4MBまで(Vercelのサーバーレス関数のリクエストサイズ上限が4.5MBのため)。
 
 ## データベースについて
 

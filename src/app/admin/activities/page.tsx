@@ -67,7 +67,7 @@ export default async function AdminActivitiesPage() {
                   />
                 )}
                 <label className="text-sm block">
-                  画像をアップロード(JPEG/PNG/WebP/GIF、5MBまで・選択すると現在の画像を置き換えます)
+                  画像をアップロード(JPEG/PNG/WebP/GIF、4MBまで・選択すると現在の画像を置き換えます)
                   <input
                     type="file"
                     name="imageFile"
