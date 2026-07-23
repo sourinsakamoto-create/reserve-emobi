@@ -1,11 +1,36 @@
+import Link from "next/link";
 import { format } from "date-fns";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { toggleGuideGateAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminGuidesPage() {
+const SORT_OPTIONS = ["date", "activity", "unassigned"] as const;
+type SortOption = (typeof SORT_OPTIONS)[number];
+
+const SORT_LABELS: Record<SortOption, string> = {
+  date: "日時順",
+  activity: "プラン順",
+  unassigned: "ガイド未配置を優先",
+};
+
+const SORT_ORDER_BY: Record<SortOption, Prisma.ScheduleSlotOrderByWithRelationInput[]> = {
+  date: [{ date: "asc" }, { startTime: "asc" }, { activity: { name: "asc" } }],
+  activity: [{ activity: { name: "asc" } }, { date: "asc" }, { startTime: "asc" }],
+  unassigned: [{ guideAvailabilities: { _count: "asc" } }, { date: "asc" }, { startTime: "asc" }],
+};
+
+export default async function AdminGuidesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sort?: string }>;
+}) {
   const today = format(new Date(), "yyyy-MM-dd");
+  const { sort: sortParam } = await searchParams;
+  const sort: SortOption = SORT_OPTIONS.includes(sortParam as SortOption)
+    ? (sortParam as SortOption)
+    : "date";
 
   const [guides, slots, settings] = await Promise.all([
     prisma.staffUser.findMany({
@@ -15,7 +40,7 @@ export default async function AdminGuidesPage() {
     prisma.scheduleSlot.findMany({
       where: { date: { gte: today }, deletedAt: null },
       include: { activity: true, guideAvailabilities: true },
-      orderBy: [{ date: "asc" }, { startTime: "asc" }, { activity: { name: "asc" } }],
+      orderBy: SORT_ORDER_BY[sort],
     }),
     prisma.bookingSettings.findUnique({ where: { id: "singleton" } }),
   ]);
@@ -52,6 +77,21 @@ export default async function AdminGuidesPage() {
         各ガイドが「担当可能」と設定した便(日時・アクティビティ)を、便×ガイドの表で確認できます。★は同じ便に複数のガイドが登録した場合に、先に登録して自動的に予約の担当として割り当てられるガイドです。
         (ガイドアカウントの追加は「スタッフ管理」から行えます)
       </p>
+
+      <div className="flex items-center gap-2 text-sm">
+        <span className="text-neutral-500">並び替え:</span>
+        {SORT_OPTIONS.map((option) => (
+          <Link
+            key={option}
+            href={option === "date" ? "/admin/guides" : `/admin/guides?sort=${option}`}
+            className={`rounded-full px-3 py-1 border ${
+              sort === option ? "bg-emerald-700 text-white border-emerald-700" : "border-neutral-300"
+            }`}
+          >
+            {SORT_LABELS[option]}
+          </Link>
+        ))}
+      </div>
 
       {guides.length === 0 ? (
         <p className="text-sm text-neutral-500">
